@@ -1,0 +1,58 @@
+docker_root_path: "/srv/docker"
+
+# Portainer configuration
+portainer:
+  install: true
+  docker_network_name: "proxy"
+  config_dir: "{{ docker_root_path }}/portainer"
+  # Traefik integration settings
+  traefik_labels:
+    traefik.enable: "true"
+    # Skip below if traefik.enable is false
+    traefik.http.routers.portainer.rule: "Host(`portainer.farshaddavoudi.ir`)"
+    traefik.http.routers.portainer.entrypoints: "https"
+    traefik.http.routers.portainer.tls: "true"
+    traefik.http.services.portainer.loadbalancer.server.port: "9000"
+
+# Docker Role Variables
+docker_edition: 'ce'
+docker_service_manage: true
+docker_service_state: started
+docker_service_enabled: true
+docker_add_repo: true
+docker_packages_state: present
+docker_install_compose_plugin: true
+docker_install_compose: false
+docker_compose_package_state: present
+
+# APT Repository configuration for Iran
+docker_apt_repository: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://repo.huaweicloud.com/docker-ce/linux/ubuntu {{ ansible_distribution_release }} stable"
+#docker_apt_repository: "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://mirror.iranserver.com/docker-ce/linux/ubuntu {{ ansible_distribution_release }} stable"
+docker_apt_gpg_key: "https://repo.huaweicloud.com/docker-ce/linux/ubuntu/gpg"
+#docker_apt_gpg_key: "https://download.docker.com/linux/ubuntu/gpg"
+docker_update_cache: true
+
+# Docker daemon configuration for Iran
+docker_daemon_options:
+  insecure-registries:
+    - "docker.arvancloud.ir"
+  registry-mirrors:
+    - "https://registry-1.docker.io"
+    - "https://docker.arvancloud.ir"
+    - "https://docker.mirrors.sjtug.sjtu.edu.cn"
+    - "https://mirror.baidubce.com"
+  dns:
+    - "8.8.8.8"
+    - "1.1.1.1"
+
+# Clean up obsolete packages
+docker_obsolete_packages:
+  - docker
+  - docker.io
+  - docker-engine
+  - docker-doc
+  - docker-compose
+  - docker-compose-v2
+  - podman-docker
+  - containerd
+  - runc

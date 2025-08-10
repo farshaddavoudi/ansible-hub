@@ -1,0 +1,54 @@
+api:
+  dashboard: true
+  debug: true
+
+entryPoints:
+  http:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: https
+          scheme: https
+  https:
+    address: ":443"
+
+{% if crowdsec_enable %}
+accessLog:
+  filePath: "/var/log/traefik/access.log"
+  format: json
+
+experimental:
+  plugins:
+    crowdsec-bouncer-traefik-plugin:
+      moduleName: "github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin"
+      version: "{{ crowdsec_plugin_version }}"
+{% endif %}
+
+serversTransport:
+  insecureSkipVerify: true
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+  file:
+    filename: ./config.yml
+
+certificatesResolvers:
+  arvancloud:
+    acme:
+      email: "{{ traefik_email }}"
+      storage: "acme.json"
+{% if traefik_acme_staging %}
+      caServer: "https://acme-staging-v02.api.letsencrypt.org/directory"
+{% else %}
+      caServer: "https://acme-v02.api.letsencrypt.org/directory"
+{% endif %}
+      dnsChallenge:
+        provider: "arvancloud"
+        resolvers:
+          - "1.1.1.1:53"
+          - "8.8.8.8:53"
+        delayBeforeCheck: 60s
+        disablePropagationCheck: {{ traefik_disablePropagationCheck | lower }}

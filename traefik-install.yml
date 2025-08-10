@@ -1,0 +1,30 @@
+---
+- name: Install Traefik
+  hosts: traefik_servers
+  become: true
+
+  pre_tasks:
+    - name: Ensure python3-pip is installed
+      apt:
+        name: python3-pip
+        state: present
+        update_cache: true
+
+    - name: Ensure Docker SDK for Python is installed
+      pip:
+        name: docker
+        state: present
+        extra_args: --break-system-packages
+
+  roles:
+    - role: traefik
+
+  post_tasks:
+    - name: Verify Traefik is running
+      uri:
+        url: "https://{{ traefik_domain }}"
+        validate_certs: no
+      register: result
+      until: result.status == 200
+      retries: 10
+      delay: 5

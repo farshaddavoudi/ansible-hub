@@ -1,0 +1,27 @@
+---
+traefik_config_dir: "/srv/docker/traefik"
+traefik_network_name: "proxy"
+traefik_arvan_token: "apikey 543d6e85-c0f0-5fce-bb10-9bddbf39b130"
+traefik_dashboard_credentials: "admin:$$2y$$05$$RB6A1JPtqJxDqube9ibJGOKFlbasdXE1Gdk9lxkARfWrjoCdDjesG" # htpasswd -nbB username password. Default admin/Aa123456
+traefik_acme_staging: true  # Set to false for production
+traefik_disablePropagationCheck: true # Set true if DNS propagation is slow. By setting this flag to true disables the need to wait for the propagation of the TXT record to all authoritative name servers.
+
+# Traefik entrypoints
+traefik_secure_entrypoint: "https"
+traefik_insecure_entrypoint: "http"
+
+# CrowdSec configuration
+crowdsec_enable: false  # Set to false to disable CrowdSec
+crowdsec_api_key: "8a978acc-5146-485a-9433-c51bafe211ab"  # Your-generated-api-key-here
+crowdsec_version: "v1.6.4"
+crowdsec_bouncer_version: "v1.3.0"
+crowdsec_pgid: "1000"
+crowdsec_collections: "crowdsecurity/traefik crowdsecurity/http-cve crowdsecurity/whitelist-good-actors crowdsecurity/iptables crowdsecurity/linux"
+crowdsec_agent_host: "crowdsec:8080"
+
+# Admin IP whitelist - Add your public IPs here
+admin_whitelist_ips:
+  - "10.0.0.0/8"
+  - "192.168.0.0/16"
+  - "172.16.0.0/12"
+  - "89.45.48.69/32"  # Your current public IP

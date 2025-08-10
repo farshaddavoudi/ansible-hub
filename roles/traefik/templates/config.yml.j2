@@ -1,0 +1,144 @@
+http:
+  middlewares:
+{% if crowdsec_enable %}
+    crowdsec-bouncer:
+      plugin:
+        crowdsec-bouncer-traefik-plugin:
+          enabled: true
+          logLevel: INFO
+          crowdsecMode: live
+          crowdsecAppsecEnabled: true
+          crowdsecAppsecHost: {{ crowdsec_appsec_host }}
+          crowdsecLapiHost: {{ crowdsec_lapi_host }}
+          crowdsecLapiKey: "{{ crowdsec_api_key }}"
+          crowdsecLapiScheme: http
+          crowdsecCapiMachineId: "{{ crowdsec_machine_id }}"
+          crowdsecCapiPassword: "{{ crowdsec_api_key }}"
+          forwardedHeadersCustomName: "X-Forwarded-For"
+          clientTrustedIPs:
+            - "10.0.0.0/8"
+            - "172.16.0.0/12"
+            - "192.168.0.0/16"
+{% endif %}
+    
+    security-chain:
+      chain:
+        middlewares:
+{% if crowdsec_enable %}
+          - crowdsec-bouncer
+{% endif %}
+          - forwarded-headers
+          - override-csp
+          - ratelimit-per-ip
+    balanced-security-chain:
+      chain:
+        middlewares:
+{% if crowdsec_enable %}
+          - crowdsec-bouncer
+{% endif %}
+          - permissive-csp
+          - minimal-headers
+          - ratelimit-per-ip
+    disable-security-chain:
+      chain:
+        middlewares:
+          - no-security-headers
+          - minimal-headers
+          - force-https
+          - ratelimit-per-ip
+    ratelimit-per-ip:
+      rateLimit:
+        average: 10 # 10 per minute = 0.166 per second
+        burst: 10
+        period: 1m
+        sourceCriterion:
+          requestHeaderName: X-Real-IP
+          ipStrategy:
+            depth: 0
+    no-security-headers:
+      headers:
+        customResponseHeaders:
+          Content-Security-Policy: ""
+          X-Frame-Options: ""
+          X-Content-Type-Options: ""
+          Strict-Transport-Security: ""
+    permissive-csp:
+      headers:
+        customResponseHeaders:
+          Content-Security-Policy: "default-src * 'unsafe-inline' 'unsafe-eval'; connect-src *; frame-src *; img-src * data:;"
+    minimal-headers:
+      headers:
+        sslProxyHeaders:
+          X-Forwarded-Proto: "https"
+        customRequestHeaders:
+          X-Forwarded-Proto: "https"
+    override-csp:
+      headers:
+        customResponseHeaders:
+          Content-Security-Policy: >-
+            default-src 'self' https:;
+            connect-src 'self' https:;
+            img-src 'self' https: data:;
+            font-src 'self' https: data:;
+            frame-src 'self' https:;
+            script-src 'self' 'unsafe-inline' 'unsafe-eval';
+            style-src 'self' 'unsafe-inline';
+            base-uri 'self';
+            form-action 'self' https:
+    forwarded-headers:
+      headers:
+        sslProxyHeaders:
+          X-Forwarded-Proto: "https"
+    force-https:
+      redirectScheme:
+        scheme: https
+        permanent: true
+    default-headers:
+      headers:
+        customBrowserXSSValue: 0 # X-XSS-Protection=1; mode=block
+        frameDeny: false # X-Frame-Options=deny
+        customFrameOptionsValue: SAMEORIGIN
+        browserXssFilter: true
+        contentTypeNosniff: true # X-Content-Type-Options=nosniff
+        forceSTSHeader: true # Add the Strict-Transport-Security header even when the connection is HTTP
+        stsIncludeSubdomains: true # Add includeSubdomains to the Strict-Transport-Security header
+        stsPreload: true # Add preload flag appended to the Strict-Transport-Security header
+        stsSeconds: 3153600 # Set the max-age of the Strict-Transport-Security header (63072000 = 2 years)
+        #contentSecurityPolicy: "default-src 'self'; frame-src *"
+        referrerPolicy: "strict-origin-when-cross-origin"
+        customRequestHeaders:
+          X-Forwarded-Proto: https
+
+    default-whitelist:
+      ipAllowList:
+        sourceRange:
+{% for ip in admin_whitelist_ips %}
+          - "{{ ip }}"
+{% endfor %}
+
+    secured:
+      chain:
+        middlewares:
+          - default-whitelist
+          - default-headers
+
+  routers:
+    monitoring-vm-router:
+      entryPoints:
+        - "https"
+      rule: "Host(`loki.ir`)"
+      middlewares:
+{% if crowdsec_enable %}
+        - crowdsec-bouncer
+{% endif %}
+        - default-headers
+        - force-https
+      tls: {} # TLS termination
+      service: monitoring-vm
+
+  services:
+    monitoring-vm:
+      loadBalancer:
+        servers:
+          - url: "https://192.168.0.144:9000"
+        passHostHeader: true

@@ -1,0 +1,116 @@
+---
+- name: Generate CrowdSec API key if not provided
+  set_fact:
+    crowdsec_api_key: "{{ lookup('ansible.builtin.password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+  when: crowdsec_enable and (crowdsec_api_key == "" or crowdsec_api_key is not defined)
+
+- name: Create Traefik directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ traefik_config_dir }}"
+    - "{{ traefik_config_dir }}/logs"
+
+- name: Create CrowdSec directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ crowdsec_config_dir }}"
+    - "{{ crowdsec_config_dir }}/data"
+    - "{{ crowdsec_config_dir }}/config"
+    - "{{ crowdsec_config_dir }}/logs"
+  when: crowdsec_enable
+
+- name: Copy Traefik static config
+  template:
+    src: traefik.yml.j2
+    dest: "{{ traefik_config_dir }}/traefik.yml"
+    mode: '0644'
+
+- name: Copy Traefik dynamic config
+  template:
+    src: config.yml.j2
+    dest: "{{ traefik_config_dir }}/config.yml"
+    mode: '0644'
+
+- name: Create empty acme.json
+  file:
+    path: "{{ traefik_config_dir }}/acme.json"
+    state: touch
+    mode: '0600'
+
+- name: Copy CrowdSec acquis.yaml
+  template:
+    src: acquis.yaml.j2
+    dest: "{{ crowdsec_config_dir }}/acquis.yaml"
+    mode: '0644'
+  when: crowdsec_enable
+
+- name: Create Traefik .env file from template
+  template:
+    src: .env.j2
+    dest: "{{ traefik_config_dir }}/.env"
+    owner: root
+    group: root
+    mode: '0600'  # Important for security as it contains secrets
+
+- name: Copy docker-compose.yml
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ traefik_config_dir }}/docker-compose.yml"
+    mode: '0644'
+
+- name: Create Docker network
+  docker_network:
+    name: "{{ traefik_network_name }}"
+    state: present
+
+- name: Destroy Traefik stack via docker-compose
+  ansible.builtin.command:
+    cmd: docker compose down
+    chdir: "{{ traefik_config_dir }}"
+
+- name: Deploy Traefik stack via docker-compose
+  ansible.builtin.command:
+    cmd: docker compose up -d
+    chdir: "{{ traefik_config_dir }}"
+
+- name: Wait for CrowdSec container to be healthy
+  docker_container_info:
+    name: crowdsec
+  register: crowdsec_info
+  until: crowdsec_info.container.State.Health.Status == "healthy"
+  retries: 12
+  delay: 5
+  when: crowdsec_enable
+
+- name: Delete existing CrowdSec bouncer to ensure clean state
+  community.docker.docker_container_exec:
+    container: crowdsec
+    command: /bin/sh -c "cscli bouncers delete traefik-plugin"
+  when: crowdsec_enable
+  ignore_errors: true
+
+- name: Register CrowdSec bouncer for plugin
+  community.docker.docker_container_exec:
+    container: crowdsec
+    command: /bin/sh -c "cscli bouncers add traefik-plugin --key {{ crowdsec_api_key }}"
+  when: crowdsec_enable
+  register: bouncer_result
+  failed_when: 
+    - bouncer_result.rc != 0
+    - "'already exists' not in bouncer_result.stderr"
+
+- name: Display bouncer registration result
+  debug:
+    msg: "CrowdSec bouncer registration: {{ 'Success' if bouncer_result.rc == 0 else 'Failed' }}"
+  when: crowdsec_enable
+
+- name: Display the API key being used
+  debug:
+    msg: "Using CrowdSec API key: {{ crowdsec_api_key[:8] }}..."
+  when: crowdsec_enable

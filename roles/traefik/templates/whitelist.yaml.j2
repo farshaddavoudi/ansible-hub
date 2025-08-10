@@ -1,0 +1,19 @@
+name: crowdsecurity/whitelists
+description: "Whitelist for admin/trusted IPs"
+filter: "evt.Parsed.source_ip == nil"
+whitelist:
+  reason: "private ipv4/ipv6 ip ranges"
+  ip:
+    - "127.0.0.1"
+    - "::1"
+  cidr:
+    - "192.168.0.0/16"
+    - "10.0.0.0/8"
+    - "172.16.0.0/12"
+    - "fc00::/7"
+    - "fe80::/10"
+{% for ip in admin_whitelist_ips %}
+{% if ip not in ['10.0.0.0/8', '192.168.0.0/16', '172.16.0.0/12'] %}
+    - "{{ ip }}"
+{% endif %}
+{% endfor %}

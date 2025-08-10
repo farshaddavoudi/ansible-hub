@@ -1,0 +1,65 @@
+# Make sure the community.docker collection is installed:
+# `ansible-galaxy collection install community.docker`
+---
+- name: Install Docker
+  hosts: docker_servers
+  become: true
+    
+  pre_tasks:
+    - name: Ensure python3-pip is installed
+      apt:
+        name: python3-pip
+        state: present
+        update_cache: true
+
+    - name: Ensure Docker SDK for Python is installed
+      pip:
+        name: docker
+        state: present
+        extra_args: --break-system-packages
+
+  roles:
+    - role: geerlingguy.docker
+
+  vars_files:
+    - role_vars/geerlingguy.docker.yml
+
+  post_tasks:
+    - name: Create Portainer data directory
+      file:
+        path: "{{ portainer.config_dir }}/data"
+        state: directory
+        mode: '0755'
+      when: portainer.install
+
+    - name: Ensure proxy network exists
+      community.docker.docker_network:
+        name: "{{ portainer.docker_network_name }}"
+        state: present
+      when: portainer.install
+
+    - name: Pull Portainer image
+      community.docker.docker_image:
+        name: portainer/portainer-ce:latest
+        source: pull
+      when: portainer.install
+
+    - name: Run Portainer container
+      community.docker.docker_container:
+        name: portainer
+        image: portainer/portainer-ce:latest
+        state: started
+        restart_policy: unless-stopped
+        ports:
+          - "8000:8000"
+          - "9443:9443"
+          - "9000:9000"
+        volumes:
+          - "{{ docker_root_path }}:{{ docker_root_path }}"  # This ensures /srv/docker on host is visible inside Portainer
+          - "{{ portainer.config_dir }}/data:/data"
+          - /var/run/docker.sock:/var/run/docker.sock
+        networks:
+          - name: "{{ portainer.docker_network_name }}"
+        labels: "{{ portainer.traefik_labels if portainer.enable_traefik_labels else {} }}"
+        recreate: true
+      when: portainer.install

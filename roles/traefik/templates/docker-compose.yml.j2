@@ -1,0 +1,90 @@
+services:
+  traefik:
+    image: traefik:{{ traefik_version }}
+    container_name: traefik
+    restart: unless-stopped
+    ports:
+      - 80:80
+      - 443:443
+    security_opt:
+      - no-new-privileges:true # helps to increase security
+    env_file:
+      - .env # store other secrets e.g., dashboard password
+    networks:
+      - {{ traefik_network_name }}
+{% if crowdsec_enable %}
+    depends_on:
+      - crowdsec
+{% endif %}
+    environment:
+      - TRAEFIK_DASHBOARD_CREDENTIALS=${TRAEFIK_DASHBOARD_CREDENTIALS}
+      - ARVANCLOUD_API_TOKEN=${ARVANCLOUD_API_KEY}
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - {{ traefik_config_dir }}/traefik.yml:/traefik.yml:ro
+      - {{ traefik_config_dir }}/acme.json:/acme.json
+      - {{ traefik_config_dir }}/config.yml:/config.yml:ro
+{% if crowdsec_enable %}
+      - {{ crowdsec_config_dir }}/logs:/var/log/traefik:rw
+{% endif %}
+    labels:
+      - "traefik.enable=true"
+      # http routers
+      - "traefik.http.routers.traefik.entryPoints={{ traefik_insecure_entrypoint }}"
+      - "traefik.http.routers.traefik.rule=Host(`{{ traefik_domain }}`)"
+      # http middlewares
+      - "traefik.http.middlewares.traefik-auth.basicauth.users=${TRAEFIK_DASHBOARD_CREDENTIALS}"
+      - "traefik.http.middlewares.traefik-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.sslheader.headers.customrequestheaders.X-Forwarded-Proto=https"
+      # router middlewares
+      - "traefik.http.routers.traefik.middlewares=traefik-https-redirect"
+      # tls
+      - "traefik.http.routers.traefik-secure.entryPoints={{ traefik_secure_entrypoint }}"
+      - "traefik.http.routers.traefik-secure.rule=Host(`{{ traefik_domain }}`)"
+{% if crowdsec_enable %}
+      - "traefik.http.routers.traefik-secure.middlewares=crowdsec-bouncer@file,traefik-auth"
+{% else %}
+      - "traefik.http.routers.traefik-secure.middlewares=traefik-auth"
+{% endif %}
+      - "traefik.http.routers.traefik-secure.tls=true"
+      - "traefik.http.routers.traefik-secure.tls.certresolver=arvancloud"
+      - "traefik.http.routers.traefik-secure.tls.domains[0].main={{ traefik_domain }}"
+      - "traefik.http.routers.traefik-secure.tls.domains[0].sans=*.{{ traefik_domain }}"
+      - "traefik.http.routers.traefik-secure.service=api@internal"
+
+{% if crowdsec_enable %}
+  crowdsec:
+    image: crowdsecurity/crowdsec:{{ crowdsec_version }}
+    container_name: crowdsec
+    restart: unless-stopped
+    environment:
+      PGID: "{{ crowdsec_pgid }}"
+      COLLECTIONS: "{{ crowdsec_collections }}"
+      DISABLE_AGENT: "false"
+      DISABLE_LOCAL_API: "false"
+    volumes:
+      - {{ crowdsec_config_dir }}/acquis.yaml:/etc/crowdsec/acquis.yaml:ro
+      - {{ crowdsec_config_dir }}/data:/var/lib/crowdsec/data:rw
+      - {{ crowdsec_config_dir }}/config:/etc/crowdsec:rw
+      - {{ crowdsec_config_dir }}/logs:/var/log/traefik:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - {{ traefik_network_name }}
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "cscli", "version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    ports:
+      - "127.0.0.1:8080:8080"  # LAPI port
+      - "127.0.0.1:7422:7422"  # AppSec port
+{% endif %}
+
+networks:
+  {{ traefik_network_name }}:
+    external: true
+    name: {{ traefik_network_name }}
