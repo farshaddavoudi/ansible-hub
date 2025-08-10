@@ -1,0 +1,48 @@
+# SPDX-FileCopyrightText: 2022 - 2024 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2022 Jip J. Dekker
+# SPDX-FileCopyrightText: 2023 MDAD project contributors
+# SPDX-FileCopyrightText: 2025 Suguru Hirahara
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+
+- name: (Deprecation) Catch and report renamed Dendrite settings
+  ansible.builtin.fail:
+    msg: >-
+      Your configuration contains a variable, which now has a different name.
+      Please rename the variable (`{{ item.old }}` -> `{{ item.new }}`) on your configuration file (vars.yml).
+  when: "lookup('ansible.builtin.varnames', ('^' + item.old + '$'), wantlist=True) | length > 0"
+  with_items:
+    - {'old': 'matrix_dendrite_enable_registration_captcha', 'new': 'matrix_dendrite_client_api_enable_registration_captcha'}
+    - {'old': 'matrix_dendrite_recaptcha_public_key', 'new': 'matrix_dendrite_client_api_recaptcha_public_key'}
+    - {'old': 'matrix_dendrite_recaptcha_private_key', 'new': 'matrix_dendrite_client_api_recaptcha_private_key'}
+    - {'old': 'matrix_dendrite_registration_disabled', 'new': 'matrix_dendrite_client_api_registration_disabled'}
+    - {'old': 'matrix_dendrite_registration_shared_secret', 'new': 'matrix_dendrite_client_api_registration_shared_secret'}
+    - {'old': 'matrix_dendrite_turn_uris', 'new': 'matrix_dendrite_client_api_turn_uris'}
+    - {'old': 'matrix_dendrite_turn_client_api_shared_secret', 'new': 'matrix_dendrite_client_api_turn_shared_secret'}
+    - {'old': 'matrix_dendrite_client_api_turn_client_api_shared_secret', 'new': 'matrix_dendrite_client_api_turn_shared_secret'}
+    - {'old': 'matrix_dendrite_turn_allow_guests', 'new': 'matrix_dendrite_client_api_turn_allow_guests'}
+    - {'old': 'matrix_dendrite_rate_limiting_enabled', 'new': 'matrix_dendrite_client_api_rate_limiting_enabled'}
+    - {'old': 'matrix_dendrite_rate_limiting_threshold', 'new': 'matrix_dendrite_client_api_rate_limiting_threshold'}
+    - {'old': 'matrix_dendrite_rate_limiting_cooloff_ms', 'new': 'matrix_dendrite_client_api_rate_limiting_cooloff_ms'}
+    - {'old': 'matrix_dendrite_mediaapi_database', 'new': 'matrix_dendrite_media_api_database'}
+    - {'old': 'matrix_dendrite_syncapi_database', 'new': 'matrix_dendrite_sync_api_database'}
+    - {'old': 'matrix_dendrite_userapi_database', 'new': 'matrix_dendrite_user_api_database'}
+    - {'old': 'matrix_dendrite_userapi_auto_join_rooms', 'new': 'matrix_dendrite_user_api_auto_join_rooms'}
+    - {'old': 'matrix_dendrite_federationapi_database', 'new': 'matrix_dendrite_federation_api_database'}
+    - {'old': 'matrix_dendrite_pushserver_database', 'new': 'matrix_dendrite_push_server_database'}
+    - {'old': 'matrix_dendrite_relayapi_database', 'new': 'matrix_dendrite_relay_api_database'}
+    - {'old': 'matrix_dendrite_keyserver_database', 'new': 'matrix_dendrite_key_server_database'}
+    - {'old': 'matrix_dendrite_container_image_name_prefix', 'new': 'matrix_dendrite_docker_image_registry_prefix'}
+
+- name: Fail if required Dendrite settings not defined
+  ansible.builtin.fail:
+    msg: >-
+      You need to define a required configuration setting (`{{ item.name }}`).
+  when: "item.when | bool and lookup('vars', item.name, default='') | string | length == 0"
+  with_items:
+    - {'name': 'matrix_dendrite_hostname', when: true}
+    - {'name': 'matrix_dendrite_client_api_registration_shared_secret', when: true}
+    - {'name': 'matrix_dendrite_database_hostname', when: true}
+    - {'name': 'matrix_dendrite_container_labels_internal_client_api_traefik_entrypoints', when: "{{ matrix_dendrite_container_labels_internal_client_api_enabled }}"}

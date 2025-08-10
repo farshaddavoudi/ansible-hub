@@ -1,0 +1,93 @@
+{#
+SPDX-FileCopyrightText: 2024 MDAD project contributors
+SPDX-FileCopyrightText: 2024 - 2025 Catalan Lover <catalanlover@protonmail.com>
+
+SPDX-License-Identifier: AGPL-3.0-or-later
+#}
+
+# The log level of terminal (or container) output,
+# can be one of DEBUG, INFO, WARN and ERROR, in increasing order of importance and severity.
+#
+# This should be at INFO or DEBUG in order to get support for Draupnir problems.
+logLevel: "INFO"
+
+# Whether or not Draupnir should check moderation permissions in all protected rooms on startup.
+# Equivalent to running `!draupnir verify`.
+verifyPermissionsOnStartup: true
+
+# A case-insensitive list of ban reasons to have the bot also automatically redact the user's messages for.
+#
+# If the bot sees you ban a user with a reason that is an (exact case-insensitive) match to this list,
+# it will also remove the user's messages automatically.
+#
+# Typically this is useful to avoid having to give two commands to the bot.
+# Advanced: Use asterisks to have the reason match using "globs"
+# (f.e. "spam*testing" would match "spam for testing" as well as "spamtesting").
+#
+# See here for more info: https://www.digitalocean.com/community/tools/glob
+# Note: Keep in mind that glob is NOT regex!
+automaticallyRedactForReasons:
+  - "spam"
+  - "advertising"
+
+# Whether or not to add all joined rooms to the "protected rooms" list
+# (excluding the management room and watched policy list rooms, see below).
+#
+# Note that this effectively makes the protectedRooms and associated commands useless
+# for regular rooms.
+#
+# Note: the management room is *excluded* from this condition.
+# Explicitly add it as a protected room to protect it.
+#
+# Note: Ban list rooms the bot is watching but didn't create will not be protected.
+# Explicitly add these rooms as a protected room list if you want them protected.
+protectAllJoinedRooms: false
+
+# Increase this delay to have Draupnir wait longer between two consecutive backgrounded
+# operations. The total duration of operations will be longer, but the homeserver won't
+# be affected as much. Conversely, decrease this delay to have Draupnir chain operations
+# faster. The total duration of operations will generally be shorter, but the performance
+# of the homeserver may be more impacted.
+backgroundDelayMS: 500
+
+# Misc options for command handling and commands
+commands:
+  # Whether or not the `!draupnir` prefix is necessary to submit commands.
+  #
+  # If `true`, will allow commands like `!ban`, `!help`, etc.
+  #
+  # Note: Draupnir can also be pinged by display name instead of having to use
+  # the !draupnir prefix. For example, "my_moderator_bot: ban @spammer:example.org"
+  # will address only my_moderator_bot.
+  allowNoPrefix: false
+
+  # Any additional bot prefixes that Draupnir will listen to. i.e. adding `mod` will allow `!mod help`.
+  additionalPrefixes:
+    - "draupnir-bot"
+    - "draupnir_bot"
+    - "draupnir"
+
+  # The default reasons to be prompted with if the reason is missing from a ban command.
+  ban:
+    defaultReasons:
+      - "spam"
+      - "brigading"
+      - "harassment"
+      - "disagreement"
+
+# Safe mode provides recovery options for some failure modes when Draupnir
+# fails to start. For example, if the bot fails to resolve a room alias in
+# a watched list, or if the server has parted from a protected room and can't
+# find a way back in. Safe mode will provide different options to recover from
+# these. Such as unprotecting the room or unwatching the policy list.
+# By default Draupnir will boot into safe mode only when the failure mode
+# is recoverable.
+# It may be desirable to prevent the bot from starting into safe mode if you have
+# a pager system when Draupnir is down, as Draupnir could prevent your monitoring
+# system from identifying a failure to start.
+#safeMode:
+#  # The option for entering safe mode when Draupnir fails to start up.
+#  # - "RecoveryOnly" will only start the bot in safe mode when there are recovery options available. This is the default.
+#  # - "Never" will never start the bot in safe mode when Draupnir fails to start normally.
+#  # - "Always" will always start the bot in safe mode when Draupnir fails to start normally.
+#  bootOption: RecoveryOnly

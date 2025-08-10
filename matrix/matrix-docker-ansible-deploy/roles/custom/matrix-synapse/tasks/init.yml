@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: 2019 - 2024 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2019 Dan Arnfield
+# SPDX-FileCopyrightText: 2020 Horvath Gergely
+# SPDX-FileCopyrightText: 2021 Aaron Raimist
+# SPDX-FileCopyrightText: 2022 Marko Weltzer
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+
+# This validation task is here, not in validate_config.yml,
+# because init.yml runs before it.
+#
+# validate_config.yml aims to validate the configuration based on the work we do,
+# so we can't change the order.
+- name: Fail when using the old (renamed) room-workers preset
+  ansible.builtin.fail:
+    msg: >-
+      The `room-workers` preset has been renamed to `specialized-workers`. Update your `matrix_synapse_workers_preset` variable to use the new name.
+  when: matrix_synapse_workers_preset == 'room-workers'
+
+# Unless `matrix_synapse_workers_enabled_list` is explicitly defined,
+# we'll generate it dynamically.
+- ansible.builtin.include_tasks: "{{ role_path }}/tasks/synapse/workers/init.yml"
+  when: "matrix_synapse_workers_enabled | bool and matrix_synapse_workers_enabled_list | length == 0"
+
+- name: Ensure workers are injected into various places
+  ansible.builtin.include_tasks: "{{ role_path }}/tasks/synapse/workers/util/inject_worker.yml"
+  with_items: "{{ matrix_synapse_workers_enabled_list }}"
+  loop_control:
+    loop_var: matrix_synapse_worker_details
+  when: matrix_synapse_workers_enabled | bool

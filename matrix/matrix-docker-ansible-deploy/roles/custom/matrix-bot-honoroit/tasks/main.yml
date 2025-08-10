@@ -1,0 +1,26 @@
+# SPDX-FileCopyrightText: 2022 - 2023 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2022 MDAD project contributors
+# SPDX-FileCopyrightText: 2022 Marko Weltzer
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+
+- tags:
+    - setup-all
+    - setup-bot-honoroit
+    - install-all
+    - install-bot-honoroit
+  block:
+    - ansible.builtin.include_tasks: "{{ role_path }}/tasks/validate_config.yml"
+      when: "run_setup | bool and matrix_bot_honoroit_enabled | bool"
+
+    - ansible.builtin.include_tasks: "{{ role_path }}/tasks/setup_install.yml"
+      when: "run_setup | bool and matrix_bot_honoroit_enabled | bool"
+
+- tags:
+    - setup-all
+    - setup-bot-honoroit
+  block:
+    - ansible.builtin.include_tasks: "{{ role_path }}/tasks/setup_uninstall.yml"
+      when: "run_setup | bool and not matrix_bot_honoroit_enabled | bool"

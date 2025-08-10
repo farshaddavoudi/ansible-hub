@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: 2021 - 2023 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2022 Marko Weltzer
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+
+- tags:
+    - setup-all
+    - setup-sygnal
+    - install-all
+    - install-sygnal
+  block:
+    - when: matrix_sygnal_enabled | bool
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/validate_config.yml"
+
+    - when: matrix_sygnal_enabled | bool
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/install.yml"
+
+- tags:
+    - setup-all
+    - setup-sygnal
+  block:
+    - when: not matrix_sygnal_enabled | bool
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/uninstall.yml"

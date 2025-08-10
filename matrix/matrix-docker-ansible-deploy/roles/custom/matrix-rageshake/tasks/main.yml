@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: 2023 Benjamin Kampmann
+# SPDX-FileCopyrightText: 2023 Slavi Pantaleev
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+
+- tags:
+    - setup-all
+    - setup-rageshake
+    - install-all
+    - install-rageshake
+  block:
+    - when: matrix_rageshake_enabled | bool
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/validate_config.yml"
+
+    - when: matrix_rageshake_enabled | bool
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/install.yml"
+
+- tags:
+    - setup-all
+    - setup-rageshake
+  block:
+    - when: not matrix_rageshake_enabled | bool
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/uninstall.yml"

@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: 2022 - 2024 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2022 Julian-Samuel Gebühr
+# SPDX-FileCopyrightText: 2022 Sebastian Gumprich
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+
+- name: Check existence of matrix-cactus-comments service
+  ansible.builtin.stat:
+    path: "{{ devture_systemd_docker_base_systemd_path }}/matrix-cactus-comments.service"
+  register: matrix_cactus_comments_service_stat
+
+- when: matrix_cactus_comments_service_stat.stat.exists | bool
+  block:
+    - name: Ensure cactus comments is stopped
+      ansible.builtin.service:
+        name: matrix-cactus-comments
+        state: stopped
+        enabled: false
+        daemon_reload: true
+
+    - name: Ensure matrix-cactus-comments.service doesn't exist
+      ansible.builtin.file:
+        path: "{{ devture_systemd_docker_base_systemd_path }}/matrix-cactus-comments.service"
+        state: absent
+
+    - name: Ensure matrix-cactus-comments paths don't exist
+      ansible.builtin.file:
+        path: "{{ matrix_cactus_comments_base_path }}"
+        state: absent

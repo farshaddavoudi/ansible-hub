@@ -1,0 +1,42 @@
+# SPDX-FileCopyrightText: 2022 Marko Weltzer
+# SPDX-FileCopyrightText: 2022 Nikita Chernyi
+# SPDX-FileCopyrightText: 2022 Slavi Pantaleev
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+name: Matrix CI
+
+on: [push, pull_request]  # yamllint disable-line rule:truthy
+
+jobs:
+  yamllint:
+    name: yamllint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+      - name: Run yamllint
+        uses: frenck/action-yamllint@v1.5.0
+  ansible-lint:
+    name: ansible-lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Run ansible-lint
+        uses: ansible/ansible-lint@v25.7.0
+        with:
+          args: "roles/custom"
+          setup_python: "true"
+          working_directory: ""
+          requirements_file: requirements.yml
+  precommit:
+    name: Run pre-commit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Run pre-commit
+        uses: pre-commit/action@v3.0.1

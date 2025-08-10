@@ -1,0 +1,30 @@
+# SPDX-FileCopyrightText: 2017 - 2025 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2018 - 2022 MDAD project contributors
+# SPDX-FileCopyrightText: 2019 Stuart Mumford
+# SPDX-FileCopyrightText: 2020 Béla Becker
+# SPDX-FileCopyrightText: 2020 Chris van Dijk
+# SPDX-FileCopyrightText: 2020 Horvath Gergely
+# SPDX-FileCopyrightText: 2022 Sebastian Gumprich
+# SPDX-FileCopyrightText: 2024 - 2025 Suguru Hirahara
+# SPDX-FileCopyrightText: 2024 László Várady
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+
+- name: Ensure Matrix base paths exists
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "{{ matrix_base_data_path_mode }}"
+    owner: "{{ matrix_user_name }}"
+    group: "{{ matrix_group_name }}"
+  with_items:
+    - "{{ matrix_base_data_path }}"
+    - "{{ matrix_bin_path }}"
+
+- name: Ensure remove-all script created
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/bin/remove-all.j2"
+    dest: "{{ matrix_bin_path }}/remove-all"
+    mode: 0750

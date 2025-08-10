@@ -1,0 +1,48 @@
+# SPDX-FileCopyrightText: 2023 - 2025 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2023 MDAD project contributors
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+
+- name: Verify homeserver_url is not empty
+  ansible.builtin.assert:
+    that:
+      - matrix_user_verification_service_uvs_homeserver_url|length > 0
+    fail_msg: "Missing variable in {{ matrix_user_verification_service_ansible_name }} role"
+
+- name: Verify Auth is configured properly or disabled
+  ansible.builtin.assert:
+    that:
+      - matrix_user_verification_service_uvs_access_token|length > 0 or not matrix_user_verification_service_uvs_require_auth|bool
+    fail_msg: "If Auth is enabled, a valid (non empty) TOKEN must be given in 'matrix_user_verification_service_uvs_access_token'."
+
+- name: Verify server_name for openid verification is given, if pinning a single server_name is enabled.
+  ansible.builtin.assert:
+    that:
+      - matrix_user_verification_service_uvs_openid_verify_server_name|length > 0 or not matrix_user_verification_service_uvs_pin_openid_verify_server_name|bool
+    fail_msg: "If pinning a single server_name is enabled, a valid (non empty) server_name must be given in 'matrix_user_verification_service_uvs_openid_verify_server_name'."
+
+- name: Verify the homeserver implementation is synapse
+  ansible.builtin.assert:
+    that:
+      - matrix_homeserver_implementation == 'synapse'
+    fail_msg: "The User-Verification-Service requires Synapse as homeserver implementation"
+
+- name: Fail if required matrix-user-verification-service settings not defined
+  ansible.builtin.fail:
+    msg: >-
+      You need to define a required configuration setting (`{{ item.name }}`).
+  when: "item.when | bool and lookup('vars', item.name, default='') | string | length == 0"
+  with_items:
+    - {'name': 'matrix_user_verification_service_uvs_homeserver_url', when: true}
+    - {'name': 'matrix_user_verification_service_container_network', when: true}
+
+- name: (Deprecation) Catch and report renamed matrix-user-verification-service variables
+  ansible.builtin.fail:
+    msg: >-
+      Your configuration contains a variable, which now has a different name.
+      Please rename the variable (`{{ item.old }}` -> `{{ item.new }}`) on your configuration file (vars.yml).
+  when: "lookup('ansible.builtin.varnames', ('^' + item.old + '$'), wantlist=True) | length > 0"
+  with_items:
+    - {'old': 'matrix_user_verification_service_docker_image_name_prefix', 'new': 'matrix_user_verification_service_docker_image_registry_prefix'}

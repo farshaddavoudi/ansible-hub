@@ -1,0 +1,88 @@
+# SPDX-FileCopyrightText: 2023 - 2025 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2024 Suguru Hirahara
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+
+# Controls if (`matrix_prometheus_node_exporter` -> `prometheus_node_exporter`) validation will run.
+matrix_playbook_migration_matrix_prometheus_node_exporter_migration_validation_enabled: true
+
+# Controls if (`matrix_prometheus_postgres_exporter` -> `prometheus_postgres_exporter`) validation will run.
+matrix_playbook_migration_matrix_prometheus_postgres_exporter_migration_validation_enabled: true
+
+# Controls if (`matrix_backup_borg` -> `backup_borg`) validation will run.
+matrix_playbook_migration_matrix_backup_borg_migration_validation_enabled: true
+
+# Controls if (`matrix_grafana` -> `grafana`) validation will run.
+matrix_playbook_migration_matrix_grafana_migration_validation_enabled: true
+
+# Controls if (`matrix_ntfy` -> `ntfy`) validation will run.
+matrix_playbook_migration_matrix_ntfy_migration_validation_enabled: true
+
+# Controls if (`matrix_redis` -> `redis`) validation will run.
+matrix_playbook_migration_matrix_redis_migration_validation_enabled: true
+
+# Controls if (`redis` -> `valkey`) validation will run.
+matrix_playbook_migration_redis_valkey_migration_validation_enabled: true
+
+# Controls if (`keydb` -> `valkey`) validation will run.
+matrix_playbook_migration_keydb_valkey_migration_validation_enabled: true
+
+# Controls if (`matrix_etherpad` -> `etherpad`) validation will run.
+matrix_playbook_migration_matrix_etherpad_migration_validation_enabled: true
+
+# Controls if (`matrix_aux` -> `aux`) validation will run.
+matrix_playbook_migration_matrix_aux_migration_validation_enabled: true
+
+# Controls if (`matrix_jitsi` -> `jitsi`) validation will run.
+matrix_playbook_migration_matrix_jitsi_migration_validation_enabled: true
+
+# Controls if (`matrix_bot_postmoogle_` -> `matrix_postmoogle_`) validation will run.
+matrix_playbook_migration_matrix_postmoogle_migration_validation_enabled: true
+
+# Controls if the old apt repository (likely without a `signed-by` option) on Debian-based systems will be removed.
+#
+# Older versions of the Docker role (5.x, 6.x) used to install a repository at a path like: `/etc/apt/sources.list.d/download_docker_com_linux_*`
+# For 6.x, the repository included a `signed-by` option, but for earlier versions it did not.
+#
+# New versions of the Docker role (7.0+) install a new apt repository with `signed-by` option to a different path (`/etc/apt/sources.list.d/docker.list`),
+# but if a non-signed-by repository exists at the old path, a conflict will arise.
+#
+# Our workaround is to just delete the old repository file. Later, when the Docker role runs, it will install a new one at the new path.
+#
+# See:
+# - https://github.com/spantaleev/matrix-docker-ansible-deploy/issues/2999
+# - https://github.com/geerlingguy/ansible-role-docker/pull/410
+matrix_playbook_migration_debian_signedby_migration_enabled: true
+matrix_playbook_migration_debian_signedby_migration_repository_path: "/etc/apt/sources.list.d/download_docker_com_linux_{{ ansible_distribution | lower }}.list"
+
+# Controls if the old apt repository for Docker (`signed-by=/etc/apt/trusted.gpg.d/docker.asc`) will be removed,
+# so that the Docker role (7.2.0+) can install a new non-conflicting one (`signed-by=/etc/apt/keyrings/docker.asc`).
+#
+# Without this migration, the role would choke at the "galaxy/docker : Add Docker repository." task when trying to add the repository again:
+# > An exception occurred during task execution. To see the full traceback, use -vvv. The error was: apt_pkg.Error: E:Conflicting values set for option Signed-By regarding source https://download.docker.com/linux/ubuntu/ focal: /etc/apt/trusted.gpg.d/docker.asc != /etc/apt/keyrings/docker.asc, E:The list of sources could not be read.
+#
+# Related to: https://github.com/geerlingguy/ansible-role-docker/pull/436
+matrix_playbook_migration_docker_trusted_gpg_d_migration_enabled: true
+matrix_playbook_migration_docker_trusted_gpg_d_migration_repository_path: "/etc/apt/sources.list.d/docker.list"
+
+# Controls if variable transition checks (related to the matrix-nginx-proxy elimination) will run.
+# If you'd like to keep some `matrix_nginx_proxy` and other variables around and not be warned about them, disable this.
+# Note: this is not just about `matrix_nginx_proxy_*` variables, but about various other variables that were removed
+# during the matrix-nginx-proxy elimination.
+matrix_playbook_migration_matrix_nginx_proxy_elimination_variable_transition_checks_enabled: true
+
+# Controls if (`matrix_nginx_proxy`) leftover variable checks will run.
+# If you'd like to keep some `matrix_nginx_proxy` variables around and not be warned about them, disable this.
+matrix_playbook_migration_matrix_nginx_proxy_leftover_variable_validation_checks_enabled: true
+
+# Controls if (`matrix_ssl_`) leftover variable checks will run.
+matrix_playbook_migration_matrix_ssl_leftover_variable_checks_enabled: true
+
+# Controls whether this role will delete old files left over from `matrix-nginx-proxy`.
+# Regardless of this value, if discovered, a `matrix-nginx-proxy.service` systemd service will be stopped and removed.
+matrix_playbook_migration_matrix_nginx_proxy_uninstallation_enabled: true
+
+# Controls whether this role will try to detect and clean up the /matrix/ssl files.
+matrix_playbook_migration_matrix_ssl_uninstallation_enabled: true

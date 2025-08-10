@@ -1,0 +1,945 @@
+# SPDX-FileCopyrightText: 2023 - 2024 Michael Hollister
+# SPDX-FileCopyrightText: 2023 - 2025 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2023 MDAD project contributors
+# SPDX-FileCopyrightText: 2023 Samuel Meenzen
+# SPDX-FileCopyrightText: 2024 Suguru Hirahara
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+# matrix-media-repo is a highly customizable multi-domain media repository for Matrix.
+# Intended for medium to large environments consisting of several homeservers, this
+# media repo de-duplicates media (including remote media) while being fully compliant
+# with the specification.
+# See: https://github.com/turt2live/matrix-media-repo
+
+matrix_media_repo_enabled: false
+
+# matrix_media_repo_identifier controls the identifier of this media-repo instance, which influences:
+# - the default storage path
+# - the names of systemd services and containers
+matrix_media_repo_identifier: matrix-media-repo
+
+matrix_media_repo_container_image_self_build: false
+matrix_media_repo_container_image_self_build_repo: "https://github.com/turt2live/matrix-media-repo.git"
+
+matrix_media_repo_docker_image_path: "t2bot/matrix-media-repo"
+matrix_media_repo_docker_image: "{{ matrix_media_repo_docker_image_registry_prefix }}{{ matrix_media_repo_docker_image_path }}:{{ matrix_media_repo_docker_image_tag }}"
+matrix_media_repo_docker_image_registry_prefix: "{{ 'localhost/' if matrix_media_repo_container_image_self_build else matrix_media_repo_docker_image_registry_prefix_upstream }}"
+matrix_media_repo_docker_image_registry_prefix_upstream: "{{ matrix_media_repo_docker_image_registry_prefix_upstream_default }}"
+matrix_media_repo_docker_image_registry_prefix_upstream_default: "ghcr.io/"
+# renovate: datasource=docker depName=ghcr.io/t2bot/matrix-media-repo
+matrix_media_repo_docker_image_tag: "v1.3.8"
+matrix_media_repo_docker_image_force_pull: "{{ matrix_media_repo_docker_image.endswith(':latest') }}"
+
+matrix_media_repo_base_path: "{{ matrix_base_data_path }}/{{ matrix_media_repo_identifier }}"
+matrix_media_repo_config_path: "{{ matrix_media_repo_base_path }}/config"
+matrix_media_repo_data_path: "{{ matrix_media_repo_base_path }}/data"
+matrix_media_repo_docker_src_files_path: "{{ matrix_media_repo_base_path }}/docker-src"
+
+# List of systemd services that matrix-media-repo.service depends on
+matrix_media_repo_systemd_required_services_list: "{{ matrix_media_repo_systemd_required_services_list_default + matrix_media_repo_systemd_required_services_list_auto + matrix_media_repo_systemd_required_services_list_custom }}"
+matrix_media_repo_systemd_required_services_list_default: "{{ [devture_systemd_docker_base_docker_service_name] if devture_systemd_docker_base_docker_service_name else [] }}"
+matrix_media_repo_systemd_required_services_list_auto: []
+matrix_media_repo_systemd_required_services_list_custom: []
+
+# List of systemd services that matrix-media-repo.service wants
+matrix_media_repo_systemd_wanted_services_list: []
+
+# The base container network. It will be auto-created by this role if it doesn't exist already.
+matrix_media_repo_container_network: "{{ matrix_media_repo_identifier }}"
+
+# A list of additional container networks that the container would be connected to.
+# The role does not create these networks, so make sure they already exist.
+# Use this to expose this container to another reverse proxy, which runs in a different container network.
+matrix_media_repo_container_additional_networks: []
+
+# Controls whether media repo metrics should be proxied (exposed) on `matrix.example.com/metrics/matrix-media-repo`
+matrix_media_repo_metrics_proxying_enabled: false
+matrix_media_repo_metrics_proxying_hostname: ""
+matrix_media_repo_metrics_proxying_path: "/metrics/matrix-media-repo"
+
+# Controls whether the matrix-media-repo container exposes its HTTP port (tcp/8000 in the container).
+#
+# Takes an "<ip>:<port>" or "<port>" value (e.g. "127.0.0.1:8000"), or empty string to not expose.
+matrix_media_repo_container_http_host_bind_port: ""
+
+# Controls whether the matrix-media-repo container exposes its metrics port (tcp/9000 in the container).
+#
+# Takes an "<ip>:<port>" or "<port>" value (e.g. "127.0.0.1:9000"), or empty string to not expose.
+matrix_media_repo_container_metrics_host_bind_port: ""
+
+# Extra arguments for the Docker container
+matrix_media_repo_container_extra_arguments: []
+
+# matrix_media_repo_container_labels_traefik_enabled controls whether labels to assist a Traefik reverse-proxy will be attached to the container.
+# See `../templates/labels.j2` for details.
+#
+# To inject your own other container labels, see `matrix_media_repo_container_labels_additional_labels`.
+matrix_media_repo_container_labels_traefik_enabled: true
+matrix_media_repo_container_labels_traefik_docker_network: "{{ matrix_media_repo_container_network }}"
+matrix_media_repo_container_labels_traefik_entrypoints: web-secure
+
+# Traefik labels handling the old `/_matrix/media` endpoints on the Client-API (web-secure) entrypoint.
+# These are being superseded by `/_matrix/client/VERSION/media` endpoints - see `matrix_media_repo_container_labels_traefik_client_matrix_client_media_*`.
+matrix_media_repo_container_labels_traefik_media_enabled: true
+matrix_media_repo_container_labels_traefik_media_path_prefix: "/_matrix/media"
+matrix_media_repo_container_labels_traefik_media_rule: "Host(`{{ matrix_server_fqn_matrix }}`) && PathPrefix(`{{ matrix_media_repo_container_labels_traefik_media_path_prefix }}`)"
+matrix_media_repo_container_labels_traefik_media_priority: 0
+matrix_media_repo_container_labels_traefik_media_entrypoints: "{{ matrix_media_repo_container_labels_traefik_entrypoints }}"
+matrix_media_repo_container_labels_traefik_media_tls: "{{ matrix_media_repo_container_labels_traefik_media_entrypoints != 'web' }}"
+matrix_media_repo_container_labels_traefik_media_tls_certResolver: default  # noqa var-naming
+
+# Traefik labels handling the new `/_matrix/client/VERSION/media` endpoints on the Client-API (web-secure) entrypoint.
+# See: https://github.com/matrix-org/matrix-spec-proposals/pull/3916
+matrix_media_repo_container_labels_traefik_client_matrix_client_media_enabled: true
+matrix_media_repo_container_labels_traefik_client_matrix_client_media_path_regexp: "/_matrix/client/(?P<version>(v1))/media"
+matrix_media_repo_container_labels_traefik_client_matrix_client_media_rule: "Host(`{{ matrix_server_fqn_matrix }}`) && PathRegexp(`{{ matrix_media_repo_container_labels_traefik_client_matrix_client_media_path_regexp }}`)"
+matrix_media_repo_container_labels_traefik_client_matrix_client_media_priority: 0
+matrix_media_repo_container_labels_traefik_client_matrix_client_media_entrypoints: "{{ matrix_media_repo_container_labels_traefik_entrypoints }}"
+matrix_media_repo_container_labels_traefik_client_matrix_client_media_tls: "{{ matrix_media_repo_container_labels_traefik_client_matrix_client_media_entrypoints != 'web' }}"
+matrix_media_repo_container_labels_traefik_client_matrix_client_media_tls_certResolver: default  # noqa var-naming
+
+# Traefik labels handling the old `/_matrix/media` endpoints on the internal entrypoint.
+# This is like `matrix_media_repo_container_labels_traefik_media_*`, but on an internal Traefik entrypoint.
+# These are being superseded by `/_matrix/client/VERSION/media` endpoints - see `matrix_media_repo_container_labels_traefik_internal_matrix_client_media_*`.
+matrix_media_repo_container_labels_traefik_internal_media_enabled: false
+matrix_media_repo_container_labels_traefik_internal_media_path_prefix: "{{ matrix_media_repo_container_labels_traefik_media_path_prefix }}"
+matrix_media_repo_container_labels_traefik_internal_media_rule: "PathPrefix(`{{ matrix_media_repo_container_labels_traefik_internal_media_path_prefix }}`)"
+matrix_media_repo_container_labels_traefik_internal_media_priority: "{{ matrix_media_repo_container_labels_traefik_media_priority }}"
+matrix_media_repo_container_labels_traefik_internal_media_entrypoints: ""
+
+# Traefik labels handling the new `/_matrix/client/VERSION/media` endpoints on the internal entrypoint.
+# See: https://github.com/matrix-org/matrix-spec-proposals/pull/3916
+matrix_media_repo_container_labels_traefik_internal_matrix_client_media_enabled: false
+matrix_media_repo_container_labels_traefik_internal_matrix_client_media_path_regexp: "{{ matrix_media_repo_container_labels_traefik_client_matrix_client_media_path_regexp }}"
+matrix_media_repo_container_labels_traefik_internal_matrix_client_media_rule: "PathRegexp(`{{ matrix_media_repo_container_labels_traefik_internal_matrix_client_media_path_regexp }}`)"
+matrix_media_repo_container_labels_traefik_internal_matrix_client_media_priority: "{{ matrix_media_repo_container_labels_traefik_client_matrix_client_media_priority }}"
+matrix_media_repo_container_labels_traefik_internal_matrix_client_media_entrypoints: ""
+
+# Traefik labels handling some additional routes on the Client-API (web-secure) entrypoint:
+# - /_matrix/client/r0/logout
+# - /_matrix/client/r0/logout/all
+matrix_media_repo_container_labels_traefik_logout_enabled: true
+matrix_media_repo_container_labels_traefik_logout_path_regexp: "^/_matrix/client/(?P<version>r0|v1|v3|unstable)/(?P<endpoint>logout|logout/all)"
+matrix_media_repo_container_labels_traefik_logout_rule: "Host(`{{ matrix_server_fqn_matrix }}`) && PathRegexp(`{{ matrix_media_repo_container_labels_traefik_logout_path_regexp }}`)"
+matrix_media_repo_container_labels_traefik_logout_priority: 0
+matrix_media_repo_container_labels_traefik_logout_entrypoints: "{{ matrix_media_repo_container_labels_traefik_entrypoints }}"
+matrix_media_repo_container_labels_traefik_logout_tls: "{{ matrix_media_repo_container_labels_traefik_logout_entrypoints != 'web' }}"
+matrix_media_repo_container_labels_traefik_logout_tls_certResolver: default  # noqa var-naming
+
+# Traefik labels handling some additional routes on the Client-API (web-secure) entrypoint:
+# - /_matrix/client/r0/admin/purge_media_cache
+# - /_matrix/client/r0/admin/quarantine_media/{roomId:[^/]+}
+matrix_media_repo_container_labels_traefik_admin_enabled: true
+matrix_media_repo_container_labels_traefik_admin_path_regexp: "^/_matrix/client/(?P<version>(r0|v1|v3|unstable))/admin/(?P<endpoint>(purge_media_cache|quarantine_media/.*))"
+matrix_media_repo_container_labels_traefik_admin_rule: "Host(`{{ matrix_server_fqn_matrix }}`) && PathRegexp(`{{ matrix_media_repo_container_labels_traefik_admin_path_regexp }}`)"
+matrix_media_repo_container_labels_traefik_admin_priority: 0
+matrix_media_repo_container_labels_traefik_admin_entrypoints: "{{ matrix_media_repo_container_labels_traefik_entrypoints }}"
+matrix_media_repo_container_labels_traefik_admin_tls: "{{ matrix_media_repo_container_labels_traefik_admin_entrypoints != 'web' }}"
+matrix_media_repo_container_labels_traefik_admin_tls_certResolver: default  # noqa var-naming
+
+# Traefik labels handling some additional routes on the Client-API (web-secure) entrypoint:
+# - /_matrix/client/unstable/io.t2bot.media
+matrix_media_repo_container_labels_traefik_t2bot_enabled: true
+matrix_media_repo_container_labels_traefik_t2bot_path_prefix: "/_matrix/client/unstable/io.t2bot.media"
+matrix_media_repo_container_labels_traefik_t2bot_rule: "Host(`{{ matrix_server_fqn_matrix }}`) && PathPrefix(`{{ matrix_media_repo_container_labels_traefik_t2bot_path_prefix }}`)"
+matrix_media_repo_container_labels_traefik_t2bot_priority: 0
+matrix_media_repo_container_labels_traefik_t2bot_entrypoints: "{{ matrix_media_repo_container_labels_traefik_entrypoints }}"
+matrix_media_repo_container_labels_traefik_t2bot_tls: "{{ matrix_media_repo_container_labels_traefik_t2bot_entrypoints != 'web' }}"
+matrix_media_repo_container_labels_traefik_t2bot_tls_certResolver: default  # noqa var-naming
+
+# Controls whether labels will be added that expose the media repo metrics endpoint
+matrix_media_repo_container_labels_traefik_metrics_enabled: "{{ matrix_media_repo_metrics_enabled and matrix_media_repo_metrics_proxying_enabled }}"
+matrix_media_repo_container_labels_traefik_metrics_rule: "Host(`{{ matrix_media_repo_metrics_proxying_hostname }}`) && PathPrefix(`{{ matrix_media_repo_metrics_proxying_path }}`)"
+matrix_media_repo_container_labels_traefik_metrics_priority: 0
+matrix_media_repo_container_labels_traefik_metrics_entrypoints: "{{ matrix_media_repo_container_labels_traefik_entrypoints }}"
+matrix_media_repo_container_labels_traefik_metrics_tls: "{{ matrix_media_repo_container_labels_traefik_t2bot_entrypoints != 'web' }}"
+matrix_media_repo_container_labels_traefik_metrics_tls_certResolver: default  # noqa var-naming
+
+matrix_media_repo_container_labels_traefik_metrics_middleware_basic_auth_enabled: false
+# See: https://doc.traefik.io/traefik/middlewares/http/basicauth/#users
+matrix_media_repo_container_labels_traefik_metrics_middleware_basic_auth_users: ''
+
+# Traefik labels handling the old `/_matrix/media` endpoints on the federation entrypint.
+# These are being superseded by `/_matrix/federation/VERSION/media` endpoints - see `matrix_media_repo_container_labels_traefik_federation_matrix_federation_media_*`.
+matrix_media_repo_container_labels_traefik_media_federation_enabled: true
+matrix_media_repo_container_labels_traefik_media_federation_path_prefix: "/_matrix/media"
+matrix_media_repo_container_labels_traefik_media_federation_rule: "Host(`{{ matrix_server_fqn_matrix }}`) && PathPrefix(`{{ matrix_media_repo_container_labels_traefik_media_path_prefix }}`)"
+matrix_media_repo_container_labels_traefik_media_federation_priority: 0
+matrix_media_repo_container_labels_traefik_media_federation_entrypoints: "{{ matrix_federation_traefik_entrypoint_name }}"
+matrix_media_repo_container_labels_traefik_media_federation_tls: "{{ matrix_media_repo_container_labels_traefik_media_entrypoints != 'web' }}"
+matrix_media_repo_container_labels_traefik_media_federation_tls_certResolver: default  # noqa var-naming
+
+# Traefik labels handling the new `/_matrix/federation/VERSION/media` endpoints on the federation entrypint.
+# See: https://github.com/matrix-org/matrix-spec-proposals/pull/3916
+matrix_media_repo_container_labels_traefik_federation_matrix_federation_media_enabled: true
+matrix_media_repo_container_labels_traefik_federation_matrix_federation_media_path_regexp: "/_matrix/federation/(?P<version>(v1))/media"
+matrix_media_repo_container_labels_traefik_federation_matrix_federation_media_rule: "Host(`{{ matrix_server_fqn_matrix }}`) && PathRegexp(`{{ matrix_media_repo_container_labels_traefik_federation_matrix_federation_media_path_regexp }}`)"
+matrix_media_repo_container_labels_traefik_federation_matrix_federation_media_priority: 0
+matrix_media_repo_container_labels_traefik_federation_matrix_federation_media_entrypoints: "{{ matrix_federation_traefik_entrypoint_name }}"
+matrix_media_repo_container_labels_traefik_federation_matrix_federation_media_tls: "{{ matrix_media_repo_container_labels_traefik_federation_matrix_federation_media_entrypoints != 'web' }}"
+matrix_media_repo_container_labels_traefik_federation_matrix_federation_media_tls_certResolver: default  # noqa var-naming
+
+# Traefik labels handling some additional routes on the federation entrypoint:
+# - /_matrix/client/r0/logout
+# - /_matrix/client/r0/logout/all
+matrix_media_repo_container_labels_traefik_logout_federation_enabled: true
+matrix_media_repo_container_labels_traefik_logout_federation_path_regexp: "{{ matrix_media_repo_container_labels_traefik_logout_path_regexp }}"
+matrix_media_repo_container_labels_traefik_logout_federation_rule: "Host(`{{ matrix_server_fqn_matrix }}`) && PathRegexp(`{{ matrix_media_repo_container_labels_traefik_logout_federation_path_regexp }}`)"
+matrix_media_repo_container_labels_traefik_logout_federation_priority: 0
+matrix_media_repo_container_labels_traefik_logout_federation_entrypoints: "{{ matrix_federation_traefik_entrypoint_name }}"
+matrix_media_repo_container_labels_traefik_logout_federation_tls: "{{ matrix_media_repo_container_labels_traefik_logout_entrypoints != 'web' }}"
+matrix_media_repo_container_labels_traefik_logout_federation_tls_certResolver: default  # noqa var-naming
+
+# Traefik labels handling some additional routes on the federation entrypoint:
+# - /_matrix/client/r0/admin/purge_media_cache
+# - /_matrix/client/r0/admin/quarantine_media/{roomId:[^/]+}
+matrix_media_repo_container_labels_traefik_admin_federation_enabled: true
+matrix_media_repo_container_labels_traefik_admin_federation_path_regexp: "{{ matrix_media_repo_container_labels_traefik_admin_path_regexp }}"
+matrix_media_repo_container_labels_traefik_admin_federation_rule: "Host(`{{ matrix_server_fqn_matrix }}`) && PathRegexp(`{{ matrix_media_repo_container_labels_traefik_admin_federation_path_regexp }}`)"
+matrix_media_repo_container_labels_traefik_admin_federation_priority: 0
+matrix_media_repo_container_labels_traefik_admin_federation_entrypoints: "{{ matrix_federation_traefik_entrypoint_name }}"
+matrix_media_repo_container_labels_traefik_admin_federation_tls: "{{ matrix_media_repo_container_labels_traefik_admin_entrypoints != 'web' }}"
+matrix_media_repo_container_labels_traefik_admin_federation_tls_certResolver: default  # noqa var-naming
+
+# Traefik labels handling some additional routes on the federation entrypoint:
+# - /_matrix/client/unstable/io.t2bot.media
+matrix_media_repo_container_labels_traefik_t2bot_federation_enabled: true
+matrix_media_repo_container_labels_traefik_t2bot_federation_path_prefix: "/_matrix/client/unstable/io.t2bot.media"
+matrix_media_repo_container_labels_traefik_t2bot_federation_rule: "Host(`{{ matrix_server_fqn_matrix }}`) && PathPrefix(`{{ matrix_media_repo_container_labels_traefik_t2bot_path_prefix }}`)"
+matrix_media_repo_container_labels_traefik_t2bot_federation_priority: 0
+matrix_media_repo_container_labels_traefik_t2bot_federation_entrypoints: "{{ matrix_federation_traefik_entrypoint_name }}"
+matrix_media_repo_container_labels_traefik_t2bot_federation_tls: "{{ matrix_media_repo_container_labels_traefik_t2bot_entrypoints != 'web' }}"
+matrix_media_repo_container_labels_traefik_t2bot_federation_tls_certResolver: default  # noqa var-naming
+
+# Controls which additional headers to attach to all HTTP requests.
+# To add your own headers, use `matrix_media_repo_container_labels_traefik_additional_request_headers_custom`
+matrix_media_repo_container_labels_traefik_additional_request_headers: "{{ matrix_media_repo_container_labels_traefik_additional_request_headers_auto | combine(matrix_media_repo_container_labels_traefik_additional_request_headers_custom) }}"
+matrix_media_repo_container_labels_traefik_additional_request_headers_auto: |
+  {{
+    {}
+    | combine ({'X-Forwarded-Host': matrix_domain} if matrix_domain else {})
+  }}
+matrix_media_repo_container_labels_traefik_additional_request_headers_custom: {}
+
+# matrix_media_repo_container_labels_additional_labels contains a multiline string with additional labels to add to the container label file.
+# See `../templates/labels.j2` for details.
+#
+# Example:
+# matrix_media_repo_container_labels_additional_labels: |
+#   my.label=1
+#   another.label="here"
+matrix_media_repo_container_labels_additional_labels: ''
+
+# matrix_media_repo_dashboard_urls contains a list of URLs with Grafana dashboard definitions.
+# If the Grafana role is enabled, these dashboards will be downloaded.
+matrix_media_repo_dashboard_urls:
+  - https://raw.githubusercontent.com/spantaleev/matrix-docker-ansible-deploy/master/roles/custom/matrix-media-repo/templates/grafana/media-repo.json
+
+# *****************************************************************************
+# Configuration File Settings
+# *****************************************************************************
+
+# General repo configuration
+matrix_media_repo_bind_address: '0.0.0.0'
+matrix_media_repo_port: 8000
+
+# Where to store the logs, relative to where the repo is started from. Logs will be automatically
+# rotated every day and held for 14 days. To disable the repo logging to files, set this to
+# "-" (including quotation marks).
+#
+# Note: to change the log directory you'll have to restart the repository. This setting cannot be
+# live reloaded.
+matrix_media_repo_log_directory: "-"
+
+# Set to true to enable color coding in your logs. Note that this may cause escape sequences to
+# appear in logs which render them unreadable, which is why colors are disabled by default.
+matrix_media_repo_log_colors: false
+
+# Set to true to enable JSON logging for consumption by things like logstash. Note that this is
+# incompatible with the log color option and will always render without colors.
+matrix_media_repo_json_logs: false
+
+# The log level to log at. Note that this will need to be at least "info" to receive support.
+#
+# Values (in increasing spam): panic | fatal | error | warn | info | debug | trace
+matrix_media_repo_log_level: "info"
+
+# If true, the media repo will accept any X-Forwarded-For header without validation. In most cases
+# this option should be left as "false". Note that the media repo already expects an X-Forwarded-For
+# header, but validates it to ensure the IP being given makes sense.
+matrix_media_repo_trust_any_forwarded_address: false
+
+# If false, the media repo will not use the X-Forwarded-Host header commonly added by reverse proxies.
+# Typically this should remain as true, though in some circumstances it may need to be disabled.
+# See https://github.com/turt2live/matrix-media-repo/issues/202 for more information.
+matrix_media_repo_use_forwarded_host: true
+
+# Options for dealing with federation
+
+# On a per-host basis, the number of consecutive failures in calling the host before the
+# media repo will back off. This defaults to 20 if not given. Note that 404 errors from
+# the remote server do not count towards this.
+matrix_media_repo_federation_backoff_at: 20
+
+# The domains the media repo should never serve media for. Existing media already stored from
+# these domains will remain, however will not be downloadable without a data export. Media
+# repo administrators will bypass this check. Admin APIs will still work for media on these
+# domains.
+#
+# This will not prevent the listed domains from accessing media on this media repo - it only
+# stops users on *this* media repo from accessing media originally uploaded to the listed domains.
+#
+# Note: Adding domains controlled by the media repo itself to this list is not advisable.
+# matrix_media_repo_federation_ignored_hosts: [
+#   "example.org"
+# ]
+
+matrix_media_repo_federation_ignored_hosts: []
+
+# The database configuration for the media repository
+# Do NOT put your homeserver's existing database credentials here. Create a new database and
+# user instead. Using the same server is fine, just not the same username and database.
+matrix_media_repo_database_username: "matrix_media_repo"
+matrix_media_repo_database_password: ""
+matrix_media_repo_database_hostname: ""
+matrix_media_repo_database_port: 5432
+matrix_media_repo_database_name: "matrix_media_repo"
+matrix_media_repo_database_sslmode: disable
+
+# Currently only "postgres" is supported.
+matrix_media_repo_database_postgres: "postgres://{{ matrix_media_repo_database_username }}:{{ matrix_media_repo_database_password }}@{{ matrix_media_repo_database_hostname }}:{{ matrix_media_repo_database_port }}/{{ matrix_media_repo_database_name }}?sslmode={{ matrix_media_repo_database_sslmode }}"
+
+# The database pooling options
+
+# The maximum number of connects to hold open. More of these allow for more concurrent
+# processes to happen.
+matrix_media_repo_database_max_connections: 25
+
+# The maximum number of connects to leave idle. More of these reduces the time it takes
+# to serve requests in low-traffic scenarios.
+matrix_media_repo_database_max_idle_connections: 5
+
+# The configuration for the homeservers this media repository is known to control. Servers
+# not listed here will not be able to upload media.
+matrix_media_repo_homeservers: "{{ matrix_media_repo_homeservers_auto + matrix_media_repo_homeservers_additional }}"
+# Auto configured server setup by the playbook
+matrix_media_repo_homeservers_auto: []
+# Additional servers to be managed by MMR
+matrix_media_repo_homeservers_additional: []
+
+# If true, the playbook will generate a signing key when the setup role is invoked.
+# This is adjusted in `group_vars/matrix_servers` depending on the homeserver implementation.
+matrix_media_repo_generate_signing_key: false
+
+# Path where the homeserver signing key is located. Set automatically in
+# `group_vars/matrix_servers` depending on which homeserver is being used.
+matrix_media_repo_homeserver_signing_key: ""
+
+# Options for controlling how access tokens work with the media repo. It is recommended that if
+# you are going to use these options that the `/logout` and `/logout/all` client-server endpoints
+# be proxied through this process. They will also be called on the homeserver, and the response
+# sent straight through the client - they are simply used to invalidate the cache faster for
+# a particular user. Without these, the access tokens might still work for a short period of time
+# after the user has already invalidated them.
+#
+# This will also cache errors from the homeserver.
+#
+# Note that when this config block is used outside of a per-domain config, all hosts will be
+# subject to the same cache. This also means that application services on limited homeservers
+# could be authorized on the wrong domain.
+#
+# ***************************************************************************
+# *  IT IS HIGHLY RECOMMENDED TO USE PER-DOMAIN CONFIGS WITH THIS FEATURE.  *
+# ***************************************************************************
+
+# The maximum time a cached access token will be considered valid. Set to zero (the default)
+# to disable the cache and constantly hit the homeserver. This is recommended to be set to
+# 43200 (12 hours) on servers with the logout endpoints proxied through the media repo, and
+# zero for servers who do not proxy the endpoints through.
+matrix_media_repo_access_tokens_max_cache_time_seconds: 43200
+
+# Whether or not to use the `appservices` config option below. If disabled (the default),
+# the regular access token cache will be used for each user, potentially leading to high
+# memory usage.
+matrix_media_repo_access_tokens_use_local_appservice_config: false
+
+# The application services (and their namespaces) registered on the homeserver. Only used
+# if `useLocalAppserviceConfig` is enabled (recommended).
+#
+# Usually the appservice will provide you with these config details - they'll just need
+# translating from the appservice registration to here. Note that this does not require
+# all options from the registration, and only requires the bare minimum required to run
+# the media repo.
+# matrix_media_repo_access_tokens_appservices: [
+#   {
+#     id: "Name_of_appservice_for_your_reference",
+#     asToken: "Secret_token_for_appservices_to_use",
+#     senderUserId: "@_example_bridge:example.com",
+#     userNamespaces: [
+#       regex: "@_example_bridge_.+:example.com"
+#       # A note about regexes: it is best to suffix *all* namespaces with the homeserver
+#       # domain users are valid for, as otherwise the appservice can use any user with
+#       # any domain name it feels like, even if that domain is not configured with the
+#       # media repo. This will lead to inaccurate reporting in the case of the media
+#       # repo, and potentially leading to media being considered "remote".
+#     ]
+#   }
+# ]
+
+matrix_media_repo_access_tokens_appservices: []
+
+# These users have full access to the administrative functions of the media repository.
+# See docs/admin.md for information on what these people can do. They must belong to one of the
+# configured homeservers above.
+# matrix_media_repo_admins: [
+#   "@alice:example.org"
+# ]
+
+matrix_media_repo_admins: []
+
+# Shared secret auth is useful for applications building on top of the media repository, such
+# as a management interface. The `token` provided here is treated as a repository administrator
+# when shared secret auth is enabled: if the `token` is used in place of an access token, the'
+# request will be authorized. This is not limited to any particular domain, giving applications
+# the ability to use it on any configured hostname.
+# Set this to true to enable shared secret auth.
+matrix_media_repo_shared_secret_auth_enabled: false
+
+# Use a secure value here to prevent unauthorized access to the media repository.
+matrix_media_repo_shared_secret_auth_token: "PutSomeRandomSecureValueHere"
+
+# Datastores are places where media should be persisted. This isn't dedicated for just uploads:
+# thumbnails and other misc data is also stored in these places. The media repo, when looking
+# for a datastore to use, will always use the smallest datastore first.
+
+# ID for the file datastore (cannot change). Alphanumeric recommended.
+matrix_media_repo_datastore_file_id: "{{ '%s' | format(matrix_homeserver_generic_secret_key) | password_hash('sha512', 'filestore.db', rounds=655555) | to_uuid }}"
+
+# Datastores can be split into many areas when handling uploads. Media is still de-duplicated
+# across all datastores (local content which duplicates remote content will re-use the remote
+# content's location). This option is useful if your datastore is becoming very large, or if
+# you want faster storage for a particular kind of media.
+#
+# To disable this datastore, making it readonly, specify `forKinds: []`.
+#
+# The kinds available are:
+#   thumbnails    - Used to store thumbnails of media (local and remote).
+#   remote_media  - Original copies of remote media (servers not configured by this repo).
+#   local_media   - Original uploads for local media.
+#   archives      - Archives of content (GDPR and similar requests).
+matrix_media_repo_datastore_file_for_kinds: ["thumbnails", "remote_media", "local_media", "archives"]
+
+# Path to datastore, relative to matrix-media-repo directory root
+matrix_media_repo_datastore_opts_path: "/data/media"
+
+# ID for the s3 datastore (cannot change). Alphanumeric recommended.
+matrix_media_repo_datastore_s3_id: "{{ '%s' | format(matrix_homeserver_generic_secret_key) | password_hash('sha512', 's3store.db', rounds=655555) | to_uuid }}"
+
+# Datastores can be split into many areas when handling uploads. Media is still de-duplicated
+# across all datastores (local content which duplicates remote content will re-use the remote
+# content's location). This option is useful if your datastore is becoming very large, or if
+# you want faster storage for a particular kind of media.
+#
+# To disable this datastore, making it readonly, specify `forKinds: []`.
+#
+# The kinds available are:
+#   thumbnails    - Used to store thumbnails of media (local and remote).
+#   remote_media  - Original copies of remote media (servers not configured by this repo).
+#   local_media   - Original uploads for local media.
+#   archives      - Archives of content (GDPR and similar requests).
+matrix_media_repo_datastore_s3_for_kinds: []
+
+# The s3 uploader needs a temporary location to buffer files to reduce memory usage on
+# small file uploads. If the file size is unknown, the file is written to this location
+# before being uploaded to s3 (then the file is deleted). If you aren't concerned about
+# memory usage, set this to an empty string.
+matrix_media_repo_datastore_s3_opts_temp_path: ""
+matrix_media_repo_datastore_s3_opts_endpoint: "sfo2.digitaloceanspaces.com"
+matrix_media_repo_datastore_s3_opts_access_key_id: ""
+matrix_media_repo_datastore_s3_opts_access_secret: ""
+matrix_media_repo_datastore_s3_opts_ssl: true
+matrix_media_repo_datastore_s3_opts_bucket_name: "your-media-bucket"
+
+# An optional region for where this S3 endpoint is located. Typically not needed, though
+# some providers will need this (like Scaleway). Uncomment to use.
+# matrix_media_repo_datastore_s3_opts_region: "sfo2"
+
+# An optional storage class for tuning how the media is stored at s3.
+# See https://aws.amazon.com/s3/storage-classes/ for details; uncomment to use.
+# matrix_media_repo_datastore_s3_opts_storage_class: "STANDARD"
+
+# When set, if the requesting user/server supports being redirected, and MMR is capable
+# of performing that redirection, they will be redirected to the given object location.
+# The object ID used in S3 is assumed to be the file name, and will simply be appended.
+# It is therefore important to include any trailing slashes or path information. For
+# example, an object with ID "hello/world" will get converted to "https://mycdn.example.org/hello/world".
+# Note that MMR may not redirect in all cases, even if the client/server requests the
+# capability. MMR may still be responsible for bandwidth charges incurred from going to
+# the bucket directly.
+# matrix_media_repo_datastore_s3_opts_public_base_url: "https://mycdn.example.org/"
+
+# Set to `true` to bypass any local cache when `publicBaseUrl` is set. Has no effect
+# when `publicBaseUrl` is unset. Defaults to false (cached media will be served by MMR
+# before redirection if present).
+matrix_media_repo_datastore_s3_opts_redirect_when_cached: true
+
+# The size of the prefix (path component) to use when storing media in S3. This can
+# help improve download speeds in some S3 providers. Should not be set to higher than
+# 16 to avoid future incompatibilities with MMR. Defaults to zero (no prefix).
+matrix_media_repo_datastore_s3_opts_prefix_length: 0
+
+# Options for controlling archives. Archives are exports of a particular user's content for
+# the purpose of GDPR or moving media to a different server.
+
+# Whether archiving is enabled or not. Default enabled.
+matrix_media_repo_archiving_enabled: true
+# If true, users can request a copy of their own data. By default, only repository administrators
+# can request a copy.
+# This includes the ability for homeserver admins to request a copy of their own server's
+# data, as known to the repo.
+matrix_media_repo_archiving_self_service: false
+# The number of bytes to target per archive before breaking up the files. This is independent
+# of any file upload limits and will require a similar amount of memory when performing an export.
+# The file size is also a target, not a guarantee - it is possible to have files that are smaller
+# or larger than the target. This is recommended to be approximately double the size of your
+# file upload limit, provided there is enough memory available for the demand of exporting.
+matrix_media_repo_archiving_target_bytes_per_part: 209715200  # 200mb default
+
+# The file upload settings for the media repository
+
+# The maximum individual file size a user can upload.
+matrix_media_repo_max_bytes: 104857600  # 100MB default, 0 to disable
+
+# The minimum number of bytes to let people upload. This is recommended to be non-zero to
+# ensure that the "cost" of running the media repo is worthwhile - small file uploads tend
+# to waste more CPU and database resources than small files, thus a default of 100 bytes
+# is applied here as an approximate break-even point.
+matrix_media_repo_min_bytes: 100  # 100 bytes by default
+
+# The number of bytes to claim as the maximum size for uploads for the limits API. If this
+# is not provided then the maxBytes setting will be used instead. This is useful to provide
+# if the media repo's settings and the reverse proxy do not match for maximum request size.
+# This is purely for informational reasons and does not actually limit any functionality.
+# Set this to -1 to indicate that there is no limit. Zero will force the use of maxBytes.
+matrix_media_repo_reported_max_bytes: 0
+
+# The number of pending uploads a user is permitted to have at a given time. They must cancel,
+# complete, or otherwise let pending requests expire before uploading any more media. Set to
+# zero to disable.
+matrix_media_repo_max_pending: 5
+
+# The duration the server will wait to receive media that was asynchronously uploaded before
+# expiring it entirely. This should be set sufficiently high for a client on poor connectivity
+# to upload something. The Matrix specification recommends 24 hours (86400 seconds), however
+# this project recommends 30 minutes (1800 seconds).
+matrix_media_repo_max_age_seconds: 1800
+
+# Options for limiting how much content a user can upload. Quotas are applied to content
+# associated with a user regardless of de-duplication. Quotas which affect remote servers
+# or users will not take effect. When a user exceeds their quota they will be unable to
+# upload any more media.
+
+# Whether quotas are enabled/enforced. Note that even when disabled the media repo will
+# track how much media a user has uploaded. Quotas are disabled by default.
+matrix_media_repo_quotas_enabled: false
+
+# The upload quota rules which affect users. The first rule to match the user ID will take
+# effect. If a user does not match a rule, the defaults implied by the above config will
+# take effect instead. The user will not be permitted to upload anything above these quota
+# values, but can match them exactly.
+matrix_media_repo_quotas_users: "{{ matrix_media_repo_quotas_users_auto + matrix_media_repo_quotas_users_additional }}"
+
+matrix_media_repo_quotas_users_auto:
+  - glob: "@*:*"  # Affect all users. Use asterisks (*) to match any character.
+    # The maximum number of TOTAL bytes a user can upload. Defaults to zero (no limit).
+    maxBytes: 53687063712  # 50gb
+    # The same as maxPending above - the number of uploads the user can have waiting to
+    # complete before starting another one. Defaults to maxPending above. Set to 0 to
+    # disable.
+    maxPending: 5
+    # The maximum number of uploaded files a user can have. Defaults to zero (no limit).
+    # If both maxBytes and maxFiles are in use then the first condition a user triggers
+    # will prevent upload. Note that a user can still have uploads contributing to maxPending,
+    # but will not be able to complete them if they are at maxFiles.
+    maxFiles: 0
+
+# Additional quota glob patterns
+matrix_media_repo_quotas_users_additional: []
+
+# Settings related to downloading files from the media repository
+
+# The maximum number of bytes to download from other servers
+matrix_media_repo_downloads_max_bytes: 104857600  # 100MB default, 0 to disable
+
+# The number of workers to use when downloading remote media. Raise this number if remote
+# media is downloading slowly or timing out.
+#
+# Maximum memory usage = numWorkers multiplied by the maximum download size
+# Average memory usage is dependent on how many concurrent downloads your users are doing.
+matrix_media_repo_downloads_num_workers: 10
+
+# How long, in minutes, to cache errors related to downloading remote media. Once this time
+# has passed, the media is able to be re-requested.
+matrix_media_repo_downloads_failure_cache_minutes: 5
+
+# How many days after a piece of remote content is downloaded before it expires. It can be
+# re-downloaded on demand, this just helps free up space in your datastore. Set to zero or
+# negative to disable. Defaults to disabled.
+matrix_media_repo_downloads_expire_after_days: 0
+
+# The default size, in bytes, to return for range requests on media. Range requests are used
+# by clients when they only need part of a file, such as a video or audio element. Note that
+# the entire file will still be cached (if enabled), but only part of it will be returned.
+# If the client requests a larger or smaller range, that will be honoured.
+matrix_media_repo_downloads_default_range_chunk_size_bytes: 10485760  # 10MB default
+
+# URL Preview settings
+
+# If enabled, the preview_url routes will be accessible
+matrix_media_repo_url_previews_enabled: true
+
+# 10MB default, 0 to disable
+matrix_media_repo_url_previews_max_page_size_bytes: 10485760
+
+# If true, the media repository will try to provide previews for URLs with invalid or unsafe
+# certificates. If false (the default), the media repo will fail requests to said URLs.
+matrix_media_repo_url_previews_preview_unsafe_certificates: false
+
+# Note: URL previews are limited to a given number of words, which are then limited to a number
+# of characters, taking off the last word if it needs to. This also applies for the title.
+
+# The number of words to include in a preview (maximum)
+matrix_media_repo_url_previews_num_words: 50
+
+# The maximum number of characters for a description
+matrix_media_repo_url_previews_max_length: 200
+
+# The maximum number of words to include in a preview's title
+matrix_media_repo_url_previews_num_title_words: 30
+
+# The maximum number of characters for a title
+matrix_media_repo_url_previews_max_title_length: 150
+
+# The mime types to preview when OpenGraph previews cannot be rendered. OpenGraph previews are
+# calculated on anything matching "text/*". To have a thumbnail in the preview the URL must be
+# an image and the image's type must be allowed by the thumbnailer.
+matrix_media_repo_url_previews_file_preview_types:
+  - "image/*"
+
+# The number of workers to use when generating url previews. Raise this number if url
+# previews are slow or timing out.
+#
+# Maximum memory usage = numWorkers multiplied by the maximum page size
+# Average memory usage is dependent on how many concurrent urls your users are previewing.
+matrix_media_repo_url_previews_num_workers: 10
+
+# Either allowedNetworks or disallowedNetworks must be provided. If both are provided, they
+# will be merged. URL previews will be disabled if neither is supplied. Each entry must be
+# a CIDR range.
+matrix_media_repo_url_previews_disallowed_networks:
+  - "127.0.0.1/8"
+  - "10.0.0.0/8"
+  - "172.16.0.0/12"
+  - "192.168.0.0/16"
+  - "100.64.0.0/10"
+  - "169.254.0.0/16"
+  - '::1/128'
+  - 'fe80::/64'
+  - 'fc00::/7'
+matrix_media_repo_url_previews_allowed_networks:
+  # "Everything". The blacklist will help limit this.
+  # This is the default value for this field.
+  - "0.0.0.0/0"
+
+# How many days after a preview is generated before it expires and is deleted. The preview
+# can be regenerated safely - this just helps free up some space in your database. Set to
+# zero or negative to disable. Defaults to disabled.
+matrix_media_repo_url_previews_expire_after_days: 0
+
+# The default Accept-Language header to supply when generating URL previews when one isn't
+# supplied by the client.
+# Reference: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept-Language
+matrix_media_repo_url_previews_default_language: "en-US,en"
+
+# Set the User-Agent header to supply when generating URL previews
+matrix_media_repo_url_previews_user_agent: "matrix-media-repo"
+
+# When true, oEmbed previews will be enabled. Typically these kinds of previews are used for
+# sites that do not support OpenGraph or page scraping, such as Twitter. For information on
+# specifying providers for oEmbed, including your own, see the following documentation:
+# https://docs.t2bot.io/matrix-media-repo/url-previews/oembed.html
+# Defaults to disabled.
+matrix_media_repo_url_previews_o_embed: false
+
+# The thumbnail configuration for the media repository.
+
+# The maximum number of bytes an image can be before the thumbnailer refuses.
+matrix_media_repo_thumbnails_max_source_bytes: 10485760  # 10MB default, 0 to disable
+
+# The maximum number of pixels an image can have before the thumbnailer refuses. Note that
+# this only applies to image types: file types like audio and video are affected solely by
+# the maxSourceBytes.
+matrix_media_repo_thumbnails_max_pixels: 32000000  # 32M default
+
+# The number of workers to use when generating thumbnails. Raise this number if thumbnails
+# are slow to generate or timing out.
+#
+# Maximum memory usage = numWorkers multiplied by the maximum image source size
+# Average memory usage is dependent on how many thumbnails are being generated by your users
+matrix_media_repo_thumbnails_num_workers: 100
+
+# All thumbnails are generated into one of the sizes listed here. The first size is used as
+# the default for when no width or height is requested. The media repository will return
+# either an exact match or the next largest size of thumbnail.
+matrix_media_repo_thumbnails_sizes:
+  - width: 32
+    height: 32
+  - width: 96
+    height: 96
+  - width: 320
+    height: 240
+  - width: 640
+    height: 480
+  - width: 768   # This size is primarily used for audio thumbnailing.
+    height: 240
+  - width: 800
+    height: 600
+
+# To allow for thumbnails to be any size, not just in the sizes specified above, set this to
+# true (default false). When enabled, whatever size requested by the client will be generated
+# up to a maximum of the largest possible dimensions in the `sizes` list. For best results,
+# specify only one size in the `sizes` list when this option is enabled.
+matrix_media_repo_thumbnails_dynamic_sizing: false
+
+# The content types to thumbnail when requested. Types that are not supported by the media repo
+# will not be thumbnailed (adding application/json here won't work). Clients may still not request
+# thumbnails for these types - this won't make clients automatically thumbnail these file types.
+matrix_media_repo_thumbnails_types:
+  - "image/jpeg"
+  - "image/jpg"
+  - "image/png"
+  - "image/apng"
+  - "image/gif"
+  - "image/heif"
+  - "image/heic"
+  - "image/webp"
+  - "image/bmp"
+  - "image/tiff"
+  # - "image/svg+xml"  # Be sure to have ImageMagick installed to thumbnail SVG files
+  - "audio/mpeg"
+  - "audio/ogg"
+  - "audio/wav"
+  - "audio/flac"
+  # - "video/mp4"  # Be sure to have ffmpeg installed to thumbnail video files
+
+# Animated thumbnails can be CPU intensive to generate. To disable the generation of animated
+# thumbnails, set this to false. If disabled, regular thumbnails will be returned.
+matrix_media_repo_thumbnails_allow_animated: true
+
+# Default to animated thumbnails, if available
+matrix_media_repo_thumbnails_default_animated: false
+
+# The maximum file size to thumbnail when a capable animated thumbnail is requested. If the image
+# is larger than this, the thumbnail will be generated as a static image.
+matrix_media_repo_thumbnails_max_animate_size_bytes: 10485760  # 10MB default, 0 to disable
+
+# On a scale of 0 (start of animation) to 1 (end of animation), where should the thumbnailer try
+# and thumbnail animated content? Defaults to 0.5 (middle of animation).
+matrix_media_repo_thumbnails_still_frame: 0.5
+
+# How many days after a thumbnail is generated before it expires and is deleted. The thumbnail
+# can be regenerated safely - this just helps free up some space in your datastores. Set to
+# zero or negative to disable. Defaults to disabled.
+matrix_media_repo_thumbnails_expire_after_days: 0
+
+# Controls for the rate limit functionality
+
+# Set this to false if rate limiting is handled at a higher level or you don't want it enabled.
+matrix_media_repo_rate_limit_enabled: true
+
+# The number of requests per second before an IP will be rate limited. Must be a whole number.
+matrix_media_repo_rate_limit_requests_per_second: 1
+
+# The number of requests an IP can send at once before the rate limit is actually considered.
+matrix_media_repo_rate_limit_burst: 10
+
+# The 'leaky bucket' configurations for MMR. Leaky buckets are limited in size and have a slow
+# drain rate, minimizing the ability for a user to consume large amounts of resources.
+#
+# Buckets are checked and applied after the requests per second configuration above. Buckets are
+# disabled when rate limiting is disabled.
+#
+# Note: buckets are *not* shared across processes. If download requests could end up at two different
+# processes, two different buckets may be filled. This behaviour may change in the future.
+
+# The download bucket applies to both download requests and thumbnail requests. Each anonymous
+# user is assigned a single bucket from their IP address. Authenticated requests (when supported)
+# will use the authenticated entity as the subject - either a user or remote server.
+
+# The maximum size of each bucket.
+matrix_media_repo_rate_limit_buckets_download_capacity_bytes: 524288000  # 500mb default
+
+# The number of bytes to "drain" from the bucket every minute.
+matrix_media_repo_rate_limit_buckets_download_drain_bytes_per_minute: 5242880  # 5mb default
+
+# The number of bytes a requester can go over the capacity, once. This is used to give some
+# buffer to allow a single file to be downloaded when the caller is near the limit. This
+# should be set to either your max remote download size or 30% of the capacityBytes, whichever
+# is smaller.
+matrix_media_repo_rate_limit_buckets_download_overflow_limit_bytes: 104857600  # 100mb default (the same as the default remote download maxBytes)
+
+# Identicons are generated avatars for a given username. Some clients use these to give users a
+# default avatar after signing up. Identicons are not part of the official Matrix spec, therefore
+# this feature is completely optional.
+matrix_media_repo_identicons_enabled: true
+
+# The quarantine media settings.
+
+# If true, when a thumbnail of quarantined media is requested an image will be returned. If no
+# image is given in the thumbnailPath below then a generated image will be provided. This does
+# not affect regular downloads of files.
+matrix_media_repo_quarantine_replace_thumbnails: true
+
+# If true, when media which has been quarantined is requested an image will be returned. If
+# no image is given in the thumbnailPath below then a generated image will be provided. This
+# will replace media which is not an image (ie: quarantining a PDF will replace the PDF with
+# an image).
+matrix_media_repo_quarantine_replace_downloads: false
+
+# If provided, the given image will be returned as a thumbnail for media that is quarantined.
+matrix_media_repo_quarantine_thumbnail_path: ""
+
+# If true, administrators of the configured homeservers may quarantine media for their server
+# only. Global administrators can quarantine any media (local or remote) regardless of this
+# flag.
+matrix_media_repo_quarantine_allow_local_admins: true
+
+# The various timeouts that the media repo will use.
+
+# The maximum amount of time the media repo should spend trying to fetch a resource that is
+# being previewed.
+matrix_media_repo_timeouts_url_preview_timeout_seconds: 10
+
+# The maximum amount of time the media repo will spend making remote requests to other repos
+# or homeservers. This is primarily used to download media.
+matrix_media_repo_timeouts_federation_timeout_seconds: 120
+
+# The maximum amount of time the media repo will spend talking to your configured homeservers.
+# This is usually used to verify a user's identity.
+matrix_media_repo_timeouts_client_server_timeout_seconds: 30
+
+# Prometheus metrics configuration
+# For an example Grafana dashboard, import the following JSON:
+# https://github.com/turt2live/matrix-media-repo/blob/master/docs/grafana.json
+
+# If true, the bindAddress and port below will serve GET /metrics for Prometheus to scrape.
+matrix_media_repo_metrics_enabled: false
+
+# The address to listen on. Typically "127.0.0.1" or "0.0.0.0" for all interfaces.
+matrix_media_repo_metrics_bind_address: "0.0.0.0"
+
+# The port to listen on. Cannot be the same as the general web server port.
+matrix_media_repo_metrics_port: 9000
+
+# Plugins are optional pieces of the media repo used to extend the functionality offered.
+# Currently there are only antispam plugins, but in future there should be more options.
+# Plugins are not supported on per-domain paths and are instead repo-wide. For more
+# information on writing plugins, please visit #matrix-media-repo:t2bot.io on Matrix.
+matrix_media_repo_plugins:
+  plugins: []
+
+  # An example OCR plugin to block images with certain text. Note that the Docker image
+  # for the media repo automatically ships this at /plugins/plugin_antispam_ocr
+#  - exec: /plugins/plugin_antispam_ocr
+#    config:
+#      # The URL to your OCR server (https://github.com/otiai10/ocrserver)
+#      ocrServer: "http://localhost:8080"
+#      # The keywords to scan for. The image must contain at least one of the keywords
+#      # from each list to qualify for spam.
+#      keywordGroups:
+#        - - elon
+#          - musk
+#          - elonmusk
+#        - - bitcoin
+#      # The minimum (and maximum) sizes of images to process.
+#      minSizeBytes: 20000
+#      maxSizeBytes: 200000
+#      # The types of files to process
+#      types: ["image/png", "image/jpeg", "image/jpg"]
+#      # The user ID regex to check against
+#      userIds: "@telegram_.*"
+#      # How much of the image's height, starting from the top, to consider before
+#      # discarding the rest. Set to 1.0 to consider the whole image.
+#      percentageOfHeight: 0.35
+
+# Options for controlling various MSCs/unstable features of the media repo
+# Sections of this config might disappear or be added over time. By default all
+# features are disabled in here and must be explicitly enabled to be used.
+# featureSupport:
+# No unstable features are currently supported.
+
+# Support for redis as a cache mechanism
+#
+# Note: Enabling Redis support will mean that the existing cache mechanism will do nothing.
+# It can be safely disabled once Redis support is enabled.
+#
+# See docs/redis.md for more information on how this works and how to set it up.
+
+# Whether or not use Redis instead of in-process caching.
+matrix_media_repo_redis_enabled: false
+
+# The database number to use. Leave at zero if using a dedicated Redis instance.
+matrix_media_repo_redis_database_number: 0
+
+# The Redis shards that should be used by the media repo in the ring. The names of the
+# shards are for your reference and have no bearing on the connection, but must be unique.
+matrix_media_repo_redis_shards:
+  - name: "server1"
+    addr: ":7000"
+  - name: "server2"
+    addr: ":7001"
+  - name: "server3"
+    addr: ":7002"
+
+# Optional sentry (https://sentry.io/) configuration for the media repo
+
+# Whether or not to set up error reporting. Defaults to off.
+matrix_media_repo_sentry_enabled: false
+
+# Get this value from the setup instructions in Sentry
+matrix_media_repo_sentry_dsn: "https://examplePublicKey@ingest.sentry.io/0"
+
+# Optional environment flag. Defaults to an empty string.
+matrix_media_repo_sentry_environment: ""
+
+# Whether or not to turn on sentry's built in debugging. This will increase log output.
+matrix_media_repo_sentry_debug: false
+
+# Configuration for the internal tasks engine in the media repo. Note that this only applies
+# to the media repo process with machine ID zero (the default in single-instance mode).
+#
+# Tasks include things like data imports/exports.
+
+# The number of workers to have available for tasks. Defaults to 5.
+matrix_media_repo_tasks_num_workers: 5
+
+# Options for collecting PGO-compatible CPU profiles and submitting them to a hosted pgo-fleet
+# server. See https://github.com/t2bot/pgo-fleet for collection/more detail.
+#
+# If you process more than 1Hz of requests or have more than a dozen media repos deployed, please
+# get in contact with `@travis:t2l.io` to submit profiles directly to MMR. Submitted profiles are
+# used to improve the build speed for everyone.
+
+# Whether collection is enabled. Defaults to false.
+matrix_media_repo_pgo_enabled: false
+
+# The pgo-fleet submit URL.
+matrix_media_repo_pgo_submit_url: "https://pgo-mmr.t2host.io/v1/submit"
+
+# The pgo-fleet submit key.
+matrix_media_repo_pgo_submit_key: "INSERT_VALUE_HERE"
+
+# Specifies whether the homeserver supports federation
+matrix_media_repo_homeserver_federation_enabled: true

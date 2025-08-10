@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: 2024 Slavi Pantaleev
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+
+- name: Fail if required matrix-static-files settings not defined
+  ansible.builtin.fail:
+    msg: >-
+      You need to define a required configuration setting (`{{ item.name }}`).
+  when: "item.when | bool and vars[item.name] | string | length == 0"
+  with_items:
+    - {'name': 'matrix_static_files_container_labels_well_known_matrix_endpoint_traefik_hostname', when: "{{ matrix_static_files_container_labels_well_known_matrix_endpoint_enabled }}"}
+    - {'name': 'matrix_static_files_container_labels_well_known_matrix_endpoint_traefik_path_prefix', when: "{{ matrix_static_files_container_labels_well_known_matrix_endpoint_enabled }}"}
+
+    - {'name': 'matrix_static_files_container_labels_base_domain_traefik_hostname', when: "{{ matrix_static_files_container_labels_base_domain_enabled }}"}
+    - {'name': 'matrix_static_files_container_labels_base_domain_traefik_path_prefix', when: "{{ matrix_static_files_container_labels_base_domain_enabled }}"}
+
+    - {'name': 'matrix_static_files_container_labels_base_domain_root_path_redirection_url', when: "{{ matrix_static_files_container_labels_base_domain_enabled and matrix_static_files_container_labels_base_domain_root_path_redirection_enabled }}"}
+
+    - {'name': 'matrix_static_files_file_matrix_client_property_org_matrix_msc2965_authentication_issuer', when: "{{ matrix_static_files_file_matrix_client_property_org_matrix_msc2965_authentication_enabled and matrix_static_files_container_labels_base_domain_root_path_redirection_enabled }}"}
+    - {'name': 'matrix_static_files_file_matrix_client_property_org_matrix_msc2965_authentication_account', when: "{{ matrix_static_files_file_matrix_client_property_org_matrix_msc2965_authentication_enabled and matrix_static_files_container_labels_base_domain_root_path_redirection_enabled }}"}

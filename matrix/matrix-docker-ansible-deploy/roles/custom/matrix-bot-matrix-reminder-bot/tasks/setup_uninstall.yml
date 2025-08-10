@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: 2020 - 2022 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2022 Marko Weltzer
+# SPDX-FileCopyrightText: 2022 Sebastian Gumprich
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+
+- name: Check existence of matrix-matrix-reminder-bot service
+  ansible.builtin.stat:
+    path: "{{ devture_systemd_docker_base_systemd_path }}/matrix-bot-matrix-reminder-bot.service"
+  register: matrix_bot_matrix_reminder_bot_service_stat
+
+- when: matrix_bot_matrix_reminder_bot_service_stat.stat.exists | bool
+  block:
+    - name: Ensure matrix-matrix-reminder-bot is stopped
+      ansible.builtin.service:
+        name: matrix-bot-matrix-reminder-bot
+        state: stopped
+        enabled: false
+        daemon_reload: true
+
+    - name: Ensure matrix-bot-matrix-reminder-bot.service doesn't exist
+      ansible.builtin.file:
+        path: "{{ devture_systemd_docker_base_systemd_path }}/matrix-bot-matrix-reminder-bot.service"
+        state: absent
+
+    - name: Ensure Matrix matrix-reminder-bot paths don't exist
+      ansible.builtin.file:
+        path: "{{ matrix_bot_matrix_reminder_bot_base_path }}"
+        state: absent

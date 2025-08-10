@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: 2018 - 2023 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2018 Thomas vO
+# SPDX-FileCopyrightText: 2019 Dan Arnfield
+# SPDX-FileCopyrightText: 2022 Marko Weltzer
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+
+- ansible.builtin.set_fact:
+    matrix_synapse_password_providers_enabled: true
+
+    matrix_synapse_additional_loggers_auto: >
+      {{
+        matrix_synapse_additional_loggers_auto
+       +
+        [{'name': 'ldap_auth_provider', 'level': 'INFO'}]
+      }}

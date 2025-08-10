@@ -1,0 +1,469 @@
+{#
+SPDX-FileCopyrightText: 2023 - 2024 Michael Hollister
+SPDX-FileCopyrightText: 2024 Slavi Pantaleev
+
+SPDX-License-Identifier: AGPL-3.0-or-later
+#}
+
+{% if matrix_media_repo_container_labels_traefik_enabled %}
+traefik.enable=true
+
+{% if matrix_media_repo_container_labels_traefik_docker_network %}
+traefik.docker.network={{ matrix_media_repo_container_labels_traefik_docker_network }}
+{% endif %}
+
+traefik.http.services.matrix-media-repo.loadbalancer.server.port={{ matrix_media_repo_port }}
+traefik.http.services.matrix-media-repo-metrics.loadbalancer.server.port={{ matrix_media_repo_metrics_port }}
+
+{% set middlewares = [] %}
+
+{% if matrix_media_repo_container_labels_traefik_additional_request_headers.keys() | length > 0 %}
+{% for name, value in matrix_media_repo_container_labels_traefik_additional_request_headers.items() %}
+traefik.http.middlewares.matrix-media-repo-add-headers.headers.customrequestheaders.{{ name }}={{ value }}
+{% endfor %}
+{% set middlewares = middlewares + ['matrix-media-repo-add-headers'] %}
+{% endif %}
+
+# Matrix Client
+
+{% if matrix_media_repo_container_labels_traefik_media_enabled %}
+############################################################
+#                                                          #
+# Public Media (/_matrix/media)                            #
+#                                                          #
+############################################################
+
+traefik.http.routers.matrix-media-repo-public-media.rule={{ matrix_media_repo_container_labels_traefik_media_rule }}
+
+{% if matrix_media_repo_container_labels_traefik_media_priority | int > 0 %}
+traefik.http.routers.matrix-media-repo-public-media.priority={{ matrix_media_repo_container_labels_traefik_media_priority }}
+{% endif %}
+
+{% if middlewares | length > 0 %}
+traefik.http.routers.matrix-media-repo-public-media.middlewares={{ middlewares | join(',') }}
+{% endif %}
+
+traefik.http.routers.matrix-media-repo-public-media.service=matrix-media-repo
+traefik.http.routers.matrix-media-repo-public-media.entrypoints={{ matrix_media_repo_container_labels_traefik_media_entrypoints }}
+
+traefik.http.routers.matrix-media-repo-public-media.tls={{ matrix_media_repo_container_labels_traefik_media_tls | to_json }}
+{% if matrix_media_repo_container_labels_traefik_media_tls %}
+traefik.http.routers.matrix-media-repo-public-media.tls.certResolver={{ matrix_media_repo_container_labels_traefik_media_tls_certResolver }}
+{% endif %}
+
+############################################################
+#                                                          #
+# /Public Media (/_matrix/media)                           #
+#                                                          #
+############################################################
+{% endif %}
+
+
+{% if matrix_media_repo_container_labels_traefik_client_matrix_client_media_enabled %}
+##########################################################################
+#                                                                        #
+# Public Client Media (/_matrix/client/VERSION/media) - MSC3916          #
+#                                                                        #
+##########################################################################
+
+traefik.http.routers.matrix-media-repo-public-client-matrix-client-media.rule={{ matrix_media_repo_container_labels_traefik_client_matrix_client_media_rule }}
+
+{% if matrix_media_repo_container_labels_traefik_client_matrix_client_media_priority | int > 0 %}
+traefik.http.routers.matrix-media-repo-public-client-matrix-client-media.priority={{ matrix_media_repo_container_labels_traefik_client_matrix_client_media_priority }}
+{% endif %}
+
+{% if middlewares | length > 0 %}
+traefik.http.routers.matrix-media-repo-public-client-matrix-client-media.middlewares={{ middlewares | join(',') }}
+{% endif %}
+
+traefik.http.routers.matrix-media-repo-public-client-matrix-client-media.service=matrix-media-repo
+traefik.http.routers.matrix-media-repo-public-client-matrix-client-media.entrypoints={{ matrix_media_repo_container_labels_traefik_client_matrix_client_media_entrypoints }}
+
+traefik.http.routers.matrix-media-repo-public-client-matrix-client-media.tls={{ matrix_media_repo_container_labels_traefik_client_matrix_client_media_tls | to_json }}
+{% if matrix_media_repo_container_labels_traefik_client_matrix_client_media_tls %}
+traefik.http.routers.matrix-media-repo-public-client-matrix-client-media.tls.certResolver={{ matrix_media_repo_container_labels_traefik_client_matrix_client_media_tls_certResolver }}
+{% endif %}
+
+##########################################################################
+#                                                                        #
+# /Public Client Media (/_matrix/client/VERSION/media) - MSC3916         #
+#                                                                        #
+##########################################################################
+{% endif %}
+
+
+{% if matrix_media_repo_container_labels_traefik_internal_media_enabled %}
+############################################################
+#                                                          #
+# Internal Media (/_matrix/media)                          #
+#                                                          #
+############################################################
+
+traefik.http.routers.matrix-media-repo-internal-media.rule={{ matrix_media_repo_container_labels_traefik_internal_media_rule }}
+
+{% if matrix_media_repo_container_labels_traefik_internal_media_priority | int > 0 %}
+traefik.http.routers.matrix-media-repo-internal-media.priority={{ matrix_media_repo_container_labels_traefik_internal_media_priority }}
+{% endif %}
+
+{% if middlewares | length > 0 %}
+traefik.http.routers.matrix-media-repo-internal-media.middlewares={{ middlewares | join(',') }}
+{% endif %}
+
+traefik.http.routers.matrix-media-repo-internal-media.service=matrix-media-repo
+traefik.http.routers.matrix-media-repo-internal-media.entrypoints={{ matrix_media_repo_container_labels_traefik_internal_media_entrypoints }}
+
+############################################################
+#                                                          #
+# /Internal Media (/_matrix/media)                         #
+#                                                          #
+############################################################
+{% endif %}
+
+
+{% if matrix_media_repo_container_labels_traefik_internal_matrix_client_media_enabled %}
+##########################################################################
+#                                                                        #
+# Internal Client Media (/_matrix/client/VERSION/media) - MSC3916        #
+#                                                                        #
+##########################################################################
+
+traefik.http.routers.matrix-media-repo-internal-matrix-client-media.rule={{ matrix_media_repo_container_labels_traefik_internal_matrix_client_media_rule }}
+
+{% if matrix_media_repo_container_labels_traefik_internal_matrix_client_media_priority | int > 0 %}
+traefik.http.routers.matrix-media-repo-internal-matrix-client-media.priority={{ matrix_media_repo_container_labels_traefik_internal_matrix_client_media_priority }}
+{% endif %}
+
+{% if middlewares | length > 0 %}
+traefik.http.routers.matrix-media-repo-internal-matrix-client-media.middlewares={{ middlewares | join(',') }}
+{% endif %}
+
+traefik.http.routers.matrix-media-repo-internal-matrix-client-media.service=matrix-media-repo
+traefik.http.routers.matrix-media-repo-internal-matrix-client-media.entrypoints={{ matrix_media_repo_container_labels_traefik_internal_matrix_client_media_entrypoints }}
+
+##########################################################################
+#                                                                        #
+# /Internal Client Media (/_matrix/client/VERSION/media) - MSC3916       #
+#                                                                        #
+##########################################################################
+{% endif %}
+
+
+{% if matrix_media_repo_container_labels_traefik_logout_enabled and matrix_media_repo_access_tokens_max_cache_time_seconds > 0 %}
+############################################################
+#                                                          #
+# Public Client Logout                                     #
+# (/_matrix/client/r0/{logout,logout/all}                  #
+#                                                          #
+############################################################
+
+traefik.http.routers.matrix-media-repo-public-logout.rule={{ matrix_media_repo_container_labels_traefik_logout_rule }}
+
+{% if matrix_media_repo_container_labels_traefik_logout_priority | int > 0 %}
+traefik.http.routers.matrix-media-repo-public-logout.priority={{ matrix_media_repo_container_labels_traefik_logout_priority }}
+{% endif %}
+
+{% if middlewares | length > 0 %}
+traefik.http.routers.matrix-media-repo-public-logout.middlewares={{ middlewares | join(',') }}
+{% endif %}
+
+traefik.http.routers.matrix-media-repo-public-logout.service=matrix-media-repo
+traefik.http.routers.matrix-media-repo-public-logout.entrypoints={{ matrix_media_repo_container_labels_traefik_logout_entrypoints }}
+
+traefik.http.routers.matrix-media-repo-public-logout.tls={{ matrix_media_repo_container_labels_traefik_logout_tls | to_json }}
+{% if matrix_media_repo_container_labels_traefik_logout_tls %}
+traefik.http.routers.matrix-media-repo-public-logout.tls.certResolver={{ matrix_media_repo_container_labels_traefik_logout_tls_certResolver }}
+{% endif %}
+
+############################################################
+#                                                          #
+# /Public Client Logout                                    #
+# (/_matrix/client/r0/{logout,logout/all}                  #
+#                                                          #
+############################################################
+{% endif %}
+
+
+{% if matrix_media_repo_container_labels_traefik_admin_enabled %}
+############################################################
+#                                                          #
+# Public Client Admin (/_matrix/client/r0/admin/*)         #
+#                                                          #
+############################################################
+
+traefik.http.routers.matrix-media-repo-public-admin-federation.rule={{ matrix_media_repo_container_labels_traefik_admin_rule }}
+
+{% if matrix_media_repo_container_labels_traefik_admin_priority | int > 0 %}
+traefik.http.routers.matrix-media-repo-public-admin-federation.priority={{ matrix_media_repo_container_labels_traefik_admin_priority }}
+{% endif %}
+
+{% if middlewares | length > 0 %}
+traefik.http.routers.matrix-media-repo-public-admin-federation.middlewares={{ middlewares | join(',') }}
+{% endif %}
+
+traefik.http.routers.matrix-media-repo-public-admin-federation.service=matrix-media-repo
+traefik.http.routers.matrix-media-repo-public-admin-federation.entrypoints={{ matrix_media_repo_container_labels_traefik_admin_entrypoints }}
+
+traefik.http.routers.matrix-media-repo-public-admin-federation.tls={{ matrix_media_repo_container_labels_traefik_admin_tls | to_json }}
+{% if matrix_media_repo_container_labels_traefik_admin_tls %}
+traefik.http.routers.matrix-media-repo-public-admin-federation.tls.certResolver={{ matrix_media_repo_container_labels_traefik_admin_tls_certResolver }}
+{% endif %}
+
+############################################################
+#                                                          #
+# /Public Client Admin (/_matrix/client/r0/admin/*)        #
+#                                                          #
+############################################################
+{% endif %}
+
+
+{% if matrix_media_repo_container_labels_traefik_t2bot_enabled %}
+############################################################
+#                                                          #
+# Public Client t2bot APIs                                 #
+# (/_matrix/client/unstable/io.t2bot.media)                #
+#                                                          #
+############################################################
+
+traefik.http.routers.matrix-media-repo-public-t2bot.rule={{ matrix_media_repo_container_labels_traefik_t2bot_rule }}
+
+{% if matrix_media_repo_container_labels_traefik_t2bot_priority | int > 0 %}
+traefik.http.routers.matrix-media-repo-public-t2bot.priority={{ matrix_media_repo_container_labels_traefik_t2bot_priority }}
+{% endif %}
+
+{% if middlewares | length > 0 %}
+traefik.http.routers.matrix-media-repo-public-t2bot.middlewares={{ middlewares | join(',') }}
+{% endif %}
+
+traefik.http.routers.matrix-media-repo-public-t2bot.service=matrix-media-repo
+traefik.http.routers.matrix-media-repo-public-t2bot.entrypoints={{ matrix_media_repo_container_labels_traefik_t2bot_entrypoints }}
+
+traefik.http.routers.matrix-media-repo-public-t2bot.tls={{ matrix_media_repo_container_labels_traefik_t2bot_tls | to_json }}
+{% if matrix_media_repo_container_labels_traefik_t2bot_tls %}
+traefik.http.routers.matrix-media-repo-public-t2bot.tls.certResolver={{ matrix_media_repo_container_labels_traefik_t2bot_tls_certResolver }}
+{% endif %}
+
+############################################################
+#                                                          #
+# /Public Client t2bot APIs                                #
+# (/_matrix/client/unstable/io.t2bot.media)                #
+#                                                          #
+############################################################
+{% endif %}
+
+
+{% if matrix_media_repo_container_labels_traefik_metrics_enabled %}
+############################################################
+#                                                          #
+# Metrics                                                  #
+#                                                          #
+############################################################
+
+{% set metricsMiddlewares = ['matrix-media-repo-metrics-replace-path'] %}
+traefik.http.middlewares.matrix-media-repo-metrics-replace-path.replacepath.path=/metrics
+
+{% if matrix_media_repo_container_labels_traefik_metrics_middleware_basic_auth_enabled %}
+{% set metricsMiddlewares = metricsMiddlewares + ['matrix-media-repo-metrics-basic-auth'] %}
+traefik.http.middlewares.matrix-media-repo-metrics-basic-auth.basicauth.users={{ matrix_media_repo_container_labels_traefik_metrics_middleware_basic_auth_users }}
+{% endif %}
+
+traefik.http.routers.matrix-media-repo-metrics.rule={{ matrix_media_repo_container_labels_traefik_metrics_rule }}
+traefik.http.routers.matrix-media-repo-metrics.middlewares={{ metricsMiddlewares | join(',') }}
+
+{% if matrix_media_repo_container_labels_traefik_metrics_priority | int > 0 %}
+traefik.http.routers.matrix-media-repo-metrics.priority={{ matrix_media_repo_container_labels_traefik_metrics_priority }}
+{% endif %}
+
+traefik.http.routers.matrix-media-repo-metrics.service=matrix-media-repo-metrics
+traefik.http.routers.matrix-media-repo-metrics.entrypoints={{ matrix_media_repo_container_labels_traefik_metrics_entrypoints }}
+
+traefik.http.routers.matrix-media-repo-metrics.tls={{ matrix_media_repo_container_labels_traefik_metrics_tls | to_json }}
+{% if matrix_media_repo_container_labels_traefik_metrics_tls %}
+traefik.http.routers.matrix-media-repo-metrics.tls.certResolver={{ matrix_media_repo_container_labels_traefik_metrics_tls_certResolver }}
+{% endif %}
+
+############################################################
+#                                                          #
+# /Metrics                                                 #
+#                                                          #
+############################################################
+{% endif %}
+
+{% if matrix_media_repo_homeserver_federation_enabled %}
+# Matrix Federation
+
+
+{% if matrix_media_repo_container_labels_traefik_media_federation_enabled %}
+############################################################
+#                                                          #
+# Public Federation Media (/_matrix/media)                 #
+#                                                          #
+############################################################
+
+traefik.http.routers.matrix-media-repo-public-media-federation.rule={{ matrix_media_repo_container_labels_traefik_media_federation_rule }}
+
+{% if matrix_media_repo_container_labels_traefik_media_federation_priority | int > 0 %}
+traefik.http.routers.matrix-media-repo-public-media-federation.priority={{ matrix_media_repo_container_labels_traefik_media_federation_priority }}
+{% endif %}
+
+{% if middlewares | length > 0 %}
+traefik.http.routers.matrix-media-repo-public-media-federation.middlewares={{ middlewares | join(',') }}
+{% endif %}
+
+traefik.http.routers.matrix-media-repo-public-media-federation.service=matrix-media-repo
+traefik.http.routers.matrix-media-repo-public-media-federation.entrypoints={{ matrix_media_repo_container_labels_traefik_media_federation_entrypoints }}
+
+traefik.http.routers.matrix-media-repo-public-media-federation.tls={{ matrix_media_repo_container_labels_traefik_media_federation_tls | to_json }}
+{% if matrix_media_repo_container_labels_traefik_media_federation_tls %}
+traefik.http.routers.matrix-media-repo-public-media-federation.tls.certResolver={{ matrix_media_repo_container_labels_traefik_media_federation_tls_certResolver }}
+{% endif %}
+
+############################################################
+#                                                          #
+# /Public Federation Media (/_matrix/media)                #
+#                                                          #
+############################################################
+{% endif %}
+
+
+{% if matrix_media_repo_container_labels_traefik_federation_matrix_federation_media_enabled %}
+##########################################################################
+#                                                                        #
+# Public Federation Media (/_matrix/federation/VERSION/media) - MSC3916  #
+#                                                                        #
+##########################################################################
+
+traefik.http.routers.matrix-media-repo-public-federation-matrix-federation-media.rule={{ matrix_media_repo_container_labels_traefik_federation_matrix_federation_media_rule }}
+
+{% if matrix_media_repo_container_labels_traefik_federation_matrix_federation_media_priority | int > 0 %}
+traefik.http.routers.matrix-media-repo-public-federation-matrix-federation-media.priority={{ matrix_media_repo_container_labels_traefik_federation_matrix_federation_media_priority }}
+{% endif %}
+
+{% if middlewares | length > 0 %}
+traefik.http.routers.matrix-media-repo-public-federation-matrix-federation-media.middlewares={{ middlewares | join(',') }}
+{% endif %}
+
+traefik.http.routers.matrix-media-repo-public-federation-matrix-federation-media.service=matrix-media-repo
+traefik.http.routers.matrix-media-repo-public-federation-matrix-federation-media.entrypoints={{ matrix_media_repo_container_labels_traefik_federation_matrix_federation_media_entrypoints }}
+
+traefik.http.routers.matrix-media-repo-public-federation-matrix-federation-media.tls={{ matrix_media_repo_container_labels_traefik_federation_matrix_federation_media_tls | to_json }}
+{% if matrix_media_repo_container_labels_traefik_federation_matrix_federation_media_tls %}
+traefik.http.routers.matrix-media-repo-public-federation-matrix-federation-media.tls.certResolver={{ matrix_media_repo_container_labels_traefik_federation_matrix_federation_media_tls_certResolver }}
+{% endif %}
+
+##########################################################################
+#                                                                        #
+# /Public Federation Media (/_matrix/federation/VERSION/media) - MSC3916 #
+#                                                                        #
+##########################################################################
+{% endif %}
+
+
+{% if matrix_media_repo_container_labels_traefik_logout_federation_enabled and matrix_media_repo_access_tokens_max_cache_time_seconds > 0 %}
+############################################################
+#                                                          #
+# Public Federation Logout                                 #
+# (/_matrix/client/r0/{logout,logout/all}                  #
+#                                                          #
+############################################################
+
+traefik.http.routers.matrix-media-repo-public-logout-federation.rule={{ matrix_media_repo_container_labels_traefik_logout_federation_rule }}
+
+{% if matrix_media_repo_container_labels_traefik_logout_federation_priority | int > 0 %}
+traefik.http.routers.matrix-media-repo-public-logout-federation.priority={{ matrix_media_repo_container_labels_traefik_logout_federation_priority }}
+{% endif %}
+
+{% if middlewares | length > 0 %}
+traefik.http.routers.matrix-media-repo-public-logout-federation.middlewares={{ middlewares | join(',') }}
+{% endif %}
+
+traefik.http.routers.matrix-media-repo-public-logout-federation.service=matrix-media-repo
+traefik.http.routers.matrix-media-repo-public-logout-federation.entrypoints={{ matrix_media_repo_container_labels_traefik_logout_federation_entrypoints }}
+
+traefik.http.routers.matrix-media-repo-public-logout-federation.tls={{ matrix_media_repo_container_labels_traefik_logout_federation_tls | to_json }}
+{% if matrix_media_repo_container_labels_traefik_logout_federation_tls %}
+traefik.http.routers.matrix-media-repo-public-logout-federation.tls.certResolver={{ matrix_media_repo_container_labels_traefik_logout_federation_tls_certResolver }}
+{% endif %}
+
+############################################################
+#                                                          #
+# /Public Federation Logout                                #
+# (/_matrix/client/r0/{logout,logout/all}                  #
+#                                                          #
+############################################################
+{% endif %}
+
+
+{% if matrix_media_repo_container_labels_traefik_admin_federation_enabled %}
+############################################################
+#                                                          #
+# Public Federation Admin (/_matrix/client/r0/admin/*)     #
+#                                                          #
+############################################################
+
+traefik.http.routers.matrix-media-repo-public-admin.rule={{ matrix_media_repo_container_labels_traefik_admin_federation_rule }}
+
+{% if matrix_media_repo_container_labels_traefik_admin_federation_priority | int > 0 %}
+traefik.http.routers.matrix-media-repo-public-admin.priority={{ matrix_media_repo_container_labels_traefik_admin_federation_priority }}
+{% endif %}
+
+{% if middlewares | length > 0 %}
+traefik.http.routers.matrix-media-repo-public-admin.middlewares={{ middlewares | join(',') }}
+{% endif %}
+
+traefik.http.routers.matrix-media-repo-public-admin.service=matrix-media-repo
+traefik.http.routers.matrix-media-repo-public-admin.entrypoints={{ matrix_media_repo_container_labels_traefik_admin_federation_entrypoints }}
+
+traefik.http.routers.matrix-media-repo-public-admin.tls={{ matrix_media_repo_container_labels_traefik_admin_federation_tls | to_json }}
+{% if matrix_media_repo_container_labels_traefik_admin_federation_tls %}
+traefik.http.routers.matrix-media-repo-public-admin.tls.certResolver={{ matrix_media_repo_container_labels_traefik_admin_federation_tls_certResolver }}
+{% endif %}
+
+############################################################
+#                                                          #
+# /Public Federation Admin (/_matrix/client/r0/admin/*)    #
+#                                                          #
+############################################################
+{% endif %}
+
+
+{% if matrix_media_repo_container_labels_traefik_t2bot_federation_enabled %}
+############################################################
+#                                                          #
+# Public Federation t2bot APIs                             #
+# (/_matrix/client/unstable/io.t2bot.media)                #
+#                                                          #
+############################################################
+
+traefik.http.routers.matrix-media-repo-public-t2bot-federation.rule={{ matrix_media_repo_container_labels_traefik_t2bot_federation_rule }}
+
+{% if matrix_media_repo_container_labels_traefik_t2bot_federation_priority | int > 0 %}
+traefik.http.routers.matrix-media-repo-public-t2bot-federation.priority={{ matrix_media_repo_container_labels_traefik_t2bot_federation_priority }}
+{% endif %}
+
+{% if middlewares | length > 0 %}
+traefik.http.routers.matrix-media-repo-public-t2bot-federation.middlewares={{ middlewares | join(',') }}
+{% endif %}
+
+traefik.http.routers.matrix-media-repo-public-t2bot-federation.service=matrix-media-repo
+traefik.http.routers.matrix-media-repo-public-t2bot-federation.entrypoints={{ matrix_media_repo_container_labels_traefik_t2bot_federation_entrypoints }}
+
+traefik.http.routers.matrix-media-repo-public-t2bot-federation.tls={{ matrix_media_repo_container_labels_traefik_t2bot_federation_tls | to_json }}
+{% if matrix_media_repo_container_labels_traefik_t2bot_federation_tls %}
+traefik.http.routers.matrix-media-repo-public-t2bot-federation.tls.certResolver={{ matrix_media_repo_container_labels_traefik_t2bot_federation_tls_certResolver }}
+{% endif %}
+
+############################################################
+#                                                          #
+# /Public Federation t2bot APIs                            #
+# (/_matrix/client/unstable/io.t2bot.media)                #
+#                                                          #
+############################################################
+{% endif %}
+
+
+{% endif %} {# end of matrix_media_repo_homeserver_federation_enabled if-check #}
+
+
+{% endif %} {# end of matrix_media_repo_container_labels_traefik_enabled if-check #}
+
+{{ matrix_media_repo_container_labels_additional_labels }}

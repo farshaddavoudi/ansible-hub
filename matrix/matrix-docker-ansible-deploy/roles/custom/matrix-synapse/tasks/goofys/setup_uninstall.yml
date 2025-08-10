@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: 2019 - 2022 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2020 MDAD project contributors
+# SPDX-FileCopyrightText: 2022 Marko Weltzer
+# SPDX-FileCopyrightText: 2022 Sebastian Gumprich
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+
+- name: Check existence of matrix-goofys service
+  ansible.builtin.stat:
+    path: "{{ devture_systemd_docker_base_systemd_path }}/matrix-goofys.service"
+  register: matrix_goofys_service_stat
+
+- when: matrix_goofys_service_stat.stat.exists | bool
+  block:
+    - name: Ensure matrix-goofys is stopped
+      ansible.builtin.service:
+        name: matrix-goofys
+        state: stopped
+        enabled: false
+        daemon_reload: true
+
+    - name: Ensure matrix-goofys.service doesn't exist
+      ansible.builtin.file:
+        path: "{{ devture_systemd_docker_base_systemd_path }}/matrix-goofys.service"
+        state: absent
+
+    - name: Ensure goofys environment variables file doesn't exist
+      ansible.builtin.file:
+        path: "{{ matrix_synapse_config_dir_path }}/env-goofys"
+        state: absent

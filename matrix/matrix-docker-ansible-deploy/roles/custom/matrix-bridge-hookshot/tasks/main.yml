@@ -1,0 +1,35 @@
+# SPDX-FileCopyrightText: 2022 - 2024 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2022 MDAD project contributors
+# SPDX-FileCopyrightText: 2022 Marko Weltzer
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+
+- tags:
+    - reset-hookshot-encryption
+  block:
+    - when: matrix_hookshot_enabled | bool
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/reset_encryption.yml"
+
+- tags:
+    - setup-all
+    - setup-hookshot
+    - setup-bridge-hookshot
+    - install-all
+    - install-hookshot
+    - install-bridge-hookshot
+  block:
+    - when: matrix_hookshot_enabled | bool
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/validate_config.yml"
+
+    - when: matrix_hookshot_enabled | bool
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/setup_install.yml"
+
+- tags:
+    - setup-all
+    - setup-hookshot
+    - setup-bridge-hookshot
+  block:
+    - when: not matrix_hookshot_enabled | bool
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/setup_uninstall.yml"

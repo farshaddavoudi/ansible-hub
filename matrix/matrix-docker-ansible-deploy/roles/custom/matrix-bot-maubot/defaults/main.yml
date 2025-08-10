@@ -1,0 +1,182 @@
+# SPDX-FileCopyrightText: 2022 - 2025 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2022 Julian-Samuel Gebühr
+# SPDX-FileCopyrightText: 2022 Stuart Mumford
+# SPDX-FileCopyrightText: 2023 Nikita Chernyi
+# SPDX-FileCopyrightText: 2023 Samuel Meenzen
+# SPDX-FileCopyrightText: 2023 Shreyas Ajjarapu
+# SPDX-FileCopyrightText: 2024 Fabio Bonelli
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+
+# maubot is a plugin-based Matrix bot system.
+# Project source code URL: https://mau.dev/maubot/maubot
+
+matrix_bot_maubot_enabled: true
+
+matrix_bot_maubot_login: bot.maubot
+
+# This is just initial password and it will not manage subsequent password changes.
+# Use a tool like synapse-admin if you need to change it.
+matrix_bot_maubot_initial_password: ''
+
+matrix_bot_maubot_scheme: https
+matrix_bot_maubot_hostname: ''
+matrix_bot_maubot_path_prefix: /_matrix/maubot
+
+matrix_bot_maubot_container_image_self_build: false
+matrix_bot_maubot_docker_repo: "https://mau.dev/maubot/maubot.git"
+matrix_bot_maubot_docker_repo_version: "{{ 'master' if matrix_bot_maubot_version == 'latest' else matrix_bot_maubot_version }}"
+
+# renovate: datasource=docker depName=dock.mau.dev/maubot/maubot
+matrix_bot_maubot_version: v0.5.2
+matrix_bot_maubot_docker_image: "{{ matrix_bot_maubot_docker_image_registry_prefix }}maubot/maubot:{{ matrix_bot_maubot_version }}"
+matrix_bot_maubot_docker_image_registry_prefix: "{{ 'localhost/' if matrix_bot_maubot_container_image_self_build else matrix_bot_maubot_docker_image_registry_prefix_upstream }}"
+matrix_bot_maubot_docker_image_registry_prefix_upstream: "{{ matrix_bot_maubot_docker_image_registry_prefix_upstream_default }}"
+matrix_bot_maubot_docker_image_registry_prefix_upstream_default: "dock.mau.dev/"
+matrix_bot_maubot_docker_image_force_pull: "{{ matrix_bot_maubot_docker_image.endswith(':latest') }}"
+
+# matrix_bot_maubot_docker_image_customized is the name of the locally built maubot image
+# which adds various customizations on top of the original (upstream) maubot image.
+# This image will be based on the upstream `matrix_bot_maubot_docker_image` image, only if `matrix_bot_maubot_container_image_customizations_enabled: true`.
+matrix_bot_maubot_docker_image_customized: "localhost/maubot/maubot:{{ matrix_bot_maubot_version }}-customized"
+
+# Controls whether the customized image (`matrix_bot_maubot_docker_image_customized`) is to be force-built without layer caching enabled.
+matrix_bot_maubot_docker_image_customized_build_nocache: false
+
+# Controls whether the customized image (`matrix_bot_maubot_docker_image_customized`) is to be built, even if it already exists.
+# Related to: matrix_bot_maubot_docker_image_customized_build_nocache
+matrix_bot_maubot_docker_image_customized_force_source: "{{ matrix_bot_maubot_docker_image_customized_build_nocache }}"
+
+# matrix_bot_maubot_docker_image_final holds the name of the maubot image to run depending on whether or not customizations are enabled.
+matrix_bot_maubot_docker_image_final: "{{ matrix_bot_maubot_docker_image_customized if matrix_bot_maubot_container_image_customizations_enabled else matrix_bot_maubot_docker_image }} "
+
+matrix_bot_maubot_base_path: "{{ matrix_base_data_path }}/maubot"
+matrix_bot_maubot_data_path: "{{ matrix_bot_maubot_base_path }}/data"
+matrix_bot_maubot_config_path: "{{ matrix_bot_maubot_base_path }}/config"
+matrix_bot_maubot_docker_src_files_path: "{{ matrix_bot_maubot_base_path }}/docker-src"
+matrix_bot_maubot_customized_docker_src_files_path: "{{ matrix_bot_maubot_base_path }}/customized-docker-src"
+
+matrix_bot_maubot_bot_server_public_url: "{{ matrix_bot_maubot_scheme }}://{{ matrix_bot_maubot_hostname }}"
+matrix_bot_maubot_bot_server_base_path: "{{ matrix_bot_maubot_path_prefix }}/v1"
+matrix_bot_maubot_bot_server_ui_base_path: "{{ matrix_bot_maubot_path_prefix }}"
+matrix_bot_maubot_bot_server_plugin_base_path: "{{ matrix_bot_maubot_path_prefix }}/plugin/"
+matrix_bot_maubot_bot_server_appservice_base_path: "{{ matrix_bot_maubot_bot_server_base_path }}"
+
+matrix_bot_maubot_proxy_management_interface: true
+
+matrix_bot_maubot_database_engine: sqlite
+matrix_bot_maubot_sqlite_database_path_local: "{{ matrix_bot_maubot_data_path }}/maubot.db"
+matrix_bot_maubot_sqlite_database_path_in_container: "/data/maubot.db"
+
+matrix_bot_maubot_database_username: matrix_bot_maubot
+matrix_bot_maubot_database_password: ~
+matrix_bot_maubot_database_hostname: ''
+matrix_bot_maubot_database_port: 5432
+matrix_bot_maubot_database_name: matrix_bot_maubot
+matrix_bot_maubot_database_sslmode: disable
+
+matrix_bot_maubot_database_connection_string: postgres://{{ matrix_bot_maubot_database_username }}:{{ matrix_bot_maubot_database_password }}@{{ matrix_bot_maubot_database_hostname }}:{{ matrix_bot_maubot_database_port }}/{{ matrix_bot_maubot_database_name }}?sslmode={{ matrix_bot_maubot_database_sslmode }}
+
+matrix_bot_maubot_database_uri: "{{
+ 	{
+ 		'sqlite': ('sqlite:///' + matrix_bot_maubot_sqlite_database_path_in_container),
+ 		'postgres': matrix_bot_maubot_database_connection_string,
+ 	}[matrix_bot_maubot_database_engine]
+    }}"
+
+# Defines the port number where the management interface is
+# To actually expose the management interface outside of the container, use `matrix_bot_maubot_container_management_interface_http_bind_port`
+matrix_bot_maubot_server_port: 29316
+
+matrix_bot_maubot_unshared_secret: 'generate'
+
+matrix_bot_maubot_homeserver_name: "{{ matrix_domain }}"
+matrix_bot_maubot_homeserver_url: ""
+matrix_bot_maubot_homeserver_secret: ""
+
+matrix_bot_maubot_admins: []
+
+# Specifies the default log level for all bot loggers.
+matrix_bot_maubot_logging_level: WARNING
+
+# Controls whether the maubot container exposes its HTTP management interface port (tcp/29316 in the container).
+#
+# Takes an "<ip>:<port>" or "<port>" value (e.g. "127.0.0.1:29316"), or empty string to not expose.
+# If you'll be setting this at all, it should be defined in terms of `matrix_bot_maubot_server_port`.
+# Example:
+# matrix_bot_maubot_container_management_interface_http_bind_port: "127.0.0.1:{{ matrix_bot_maubot_server_port }}"
+matrix_bot_maubot_container_management_interface_http_bind_port: ''
+
+matrix_bot_maubot_container_network: ""
+
+matrix_bot_maubot_container_additional_networks: "{{ matrix_bot_maubot_container_additional_networks_auto + matrix_bot_maubot_container_additional_networks_custom }}"
+matrix_bot_maubot_container_additional_networks_auto: []
+matrix_bot_maubot_container_additional_networks_custom: []
+
+
+# matrix_bot_maubot_container_image_customizations_enabled controls whether a customized maubot image will be built.
+#
+# We toggle this variable to `true` when certain features which require a custom build are enabled.
+# Feel free to toggle this to `true` yourself and specify build steps in `matrix_bot_maubot_container_image_customizations_dockerfile_body_custom`.
+#
+# See:
+# - `roles/custom/matrix-bot-maubot/templates/maubot/customizations/Dockerfile.j2`
+# - `matrix_bot_maubot_container_image_customizations_dockerfile_body_custom`
+# - `matrix_bot_maubot_docker_image_customized`
+# - `matrix_bot_maubot_docker_image_final`
+matrix_bot_maubot_container_image_customizations_enabled: false
+
+# matrix_bot_maubot_container_image_customizations_dockerfile_body contains your custom Dockerfile steps
+# for building your customized maubot image based on the original (upstream) image (`matrix_bot_maubot_docker_image`).
+# A `FROM …` clause is included automatically so you don't have to.
+#
+# For this to take effect, you need to enable customizations (`matrix_bot_maubot_container_image_customizations_enabled: true`).
+#
+# Example:
+# matrix_bot_maubot_container_image_customizations_dockerfile_body_custom: |
+#  RUN echo 'This is a custom step for building the customized container image for maubot.'
+#  RUN echo 'You can override matrix_bot_maubot_container_image_customizations_dockerfile_body_custom to add your own steps.'
+#  RUN echo 'You do NOT need to include a FROM clause yourself.'
+matrix_bot_maubot_container_image_customizations_dockerfile_body_custom: ''
+
+# matrix_bot_maubot_container_labels_traefik_enabled controls whether labels to assist a Traefik reverse-proxy will be attached to the container.
+# See `../templates/labels.j2` for details.
+#
+# To inject your own other container labels, see `matrix_bot_maubot_container_labels_additional_labels`.
+matrix_bot_maubot_container_labels_traefik_enabled: true
+matrix_bot_maubot_container_labels_traefik_docker_network: "{{ matrix_bot_maubot_container_network }}"
+matrix_bot_maubot_container_labels_traefik_entrypoints: web-secure
+matrix_bot_maubot_container_labels_traefik_tls_certResolver: default  # noqa var-naming
+
+# Controls whether labels will be added that expose maubot's management endpoints
+matrix_bot_maubot_container_labels_management_enabled: true
+matrix_bot_maubot_container_labels_management_hostname: "{{ matrix_bot_maubot_hostname }}"
+matrix_bot_maubot_container_labels_management_prefix: "{{ matrix_bot_maubot_path_prefix }}"
+matrix_bot_maubot_container_labels_management_traefik_rule: "Host(`{{ matrix_bot_maubot_container_labels_management_hostname }}`) && PathPrefix(`{{ matrix_bot_maubot_path_prefix }}`)"
+matrix_bot_maubot_container_labels_management_traefik_priority: 0
+matrix_bot_maubot_container_labels_management_traefik_entrypoints: "{{ matrix_bot_maubot_container_labels_traefik_entrypoints }}"
+matrix_bot_maubot_container_labels_management_traefik_tls: "{{ matrix_bot_maubot_container_labels_management_traefik_entrypoints != 'web' }}"
+matrix_bot_maubot_container_labels_management_traefik_tls_certResolver: "{{ matrix_bot_maubot_container_labels_traefik_tls_certResolver }}"  # noqa var-naming
+
+# matrix_bot_maubot_container_labels_additional_labels contains a multiline string with additional labels to add to the container label file.
+# See `../templates/labels.j2` for details.
+#
+# Example:
+# matrix_bot_maubot_container_labels_additional_labels: |
+#   my.label=1
+#   another.label="here"
+matrix_bot_maubot_container_labels_additional_labels: ''
+
+# A list of extra arguments to pass to the container
+matrix_bot_maubot_container_extra_arguments: []
+
+# List of systemd services that matrix-bot-maubot.service depends on
+matrix_bot_maubot_systemd_required_services_list: "{{ matrix_bot_maubot_systemd_required_services_list_default + matrix_bot_maubot_systemd_required_services_list_auto + matrix_bot_maubot_systemd_required_services_list_custom }}"
+matrix_bot_maubot_systemd_required_services_list_default: "{{ [devture_systemd_docker_base_docker_service_name] if devture_systemd_docker_base_docker_service_name else [] }}"
+matrix_bot_maubot_systemd_required_services_list_auto: []
+matrix_bot_maubot_systemd_required_services_list_custom: []
+
+# List of systemd services that matrix-bot-maubot.service wants
+matrix_bot_maubot_systemd_wanted_services_list: []

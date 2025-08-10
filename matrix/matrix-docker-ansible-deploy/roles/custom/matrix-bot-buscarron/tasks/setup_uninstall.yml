@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: 2022 Nikita Chernyi
+# SPDX-FileCopyrightText: 2022 Sebastian Gumprich
+# SPDX-FileCopyrightText: 2022 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2024 Suguru Hirahara
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+
+- name: Check existence of matrix-buscarron service
+  ansible.builtin.stat:
+    path: "{{ devture_systemd_docker_base_systemd_path }}/matrix-bot-buscarron.service"
+  register: matrix_bot_buscarron_service_stat
+
+- when: matrix_bot_buscarron_service_stat.stat.exists | bool
+  block:
+    - name: Ensure matrix-buscarron is stopped
+      ansible.builtin.service:
+        name: matrix-bot-buscarron
+        state: stopped
+        enabled: false
+        daemon_reload: true
+
+    - name: Ensure matrix-bot-buscarron.service doesn't exist
+      ansible.builtin.file:
+        path: "{{ devture_systemd_docker_base_systemd_path }}/matrix-bot-buscarron.service"
+        state: absent
+
+    - name: Ensure Matrix Buscarron paths don't exist
+      ansible.builtin.file:
+        path: "{{ matrix_bot_buscarron_base_path }}"
+        state: absent

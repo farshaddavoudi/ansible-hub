@@ -1,0 +1,102 @@
+# SPDX-FileCopyrightText: 2021 - 2022 Aaron Raimist
+# SPDX-FileCopyrightText: 2021 - 2024 MDAD project contributors
+# SPDX-FileCopyrightText: 2021 - 2025 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2021 Ahmad Haghighi
+# SPDX-FileCopyrightText: 2022 Chirayu Desai
+# SPDX-FileCopyrightText: 2022 Marko Weltzer
+# SPDX-FileCopyrightText: 2022 Nikita Chernyi
+# SPDX-FileCopyrightText: 2023 Samuel Meenzen
+# SPDX-FileCopyrightText: 2024 Suguru Hirahara
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+# A moderation tool for Matrix
+# Project source code URL: https://github.com/matrix-org/mjolnir
+
+matrix_bot_mjolnir_enabled: true
+
+# renovate: datasource=docker depName=matrixdotorg/mjolnir
+matrix_bot_mjolnir_version: "v1.10.0"
+
+matrix_bot_mjolnir_container_image_self_build: false
+matrix_bot_mjolnir_container_image_self_build_repo: "https://github.com/matrix-org/mjolnir.git"
+
+matrix_bot_mjolnir_docker_image: "{{ matrix_bot_mjolnir_docker_image_registry_prefix }}matrixdotorg/mjolnir:{{ matrix_bot_mjolnir_version }}"
+matrix_bot_mjolnir_docker_image_registry_prefix: "{{ 'localhost/' if matrix_bot_mjolnir_container_image_self_build else matrix_bot_mjolnir_docker_image_registry_prefix_upstream }}"
+matrix_bot_mjolnir_docker_image_registry_prefix_upstream: "{{ matrix_bot_mjolnir_docker_image_registry_prefix_upstream_default }}"
+matrix_bot_mjolnir_docker_image_registry_prefix_upstream_default: "docker.io/"
+matrix_bot_mjolnir_docker_image_force_pull: "{{ matrix_bot_mjolnir_docker_image.endswith(':latest') }}"
+
+matrix_bot_mjolnir_base_path: "{{ matrix_base_data_path }}/mjolnir"
+matrix_bot_mjolnir_config_path: "{{ matrix_bot_mjolnir_base_path }}/config"
+matrix_bot_mjolnir_data_path: "{{ matrix_bot_mjolnir_base_path }}/data"
+matrix_bot_mjolnir_docker_src_files_path: "{{ matrix_bot_mjolnir_base_path }}/docker-src"
+
+matrix_bot_mjolnir_container_network: ""
+
+matrix_bot_mjolnir_container_additional_networks: "{{ matrix_bot_mjolnir_container_additional_networks_auto + matrix_bot_mjolnir_container_additional_networks_custom }}"
+matrix_bot_mjolnir_container_additional_networks_auto: []
+matrix_bot_mjolnir_container_additional_networks_custom: []
+
+# A list of extra arguments to pass to the container
+matrix_bot_mjolnir_container_extra_arguments: []
+
+# List of systemd services that matrix-bot-mjolnir.service depends on
+matrix_bot_mjolnir_systemd_required_services_list: "{{ matrix_bot_mjolnir_systemd_required_services_list_default + matrix_bot_mjolnir_systemd_required_services_list_auto + matrix_bot_mjolnir_systemd_required_services_list_custom }}"
+matrix_bot_mjolnir_systemd_required_services_list_default: "{{ [devture_systemd_docker_base_docker_service_name] if devture_systemd_docker_base_docker_service_name else [] }}"
+matrix_bot_mjolnir_systemd_required_services_list_auto: []
+matrix_bot_mjolnir_systemd_required_services_list_custom: []
+
+# List of systemd services that matrix-bot-mjolnir.service wants
+matrix_bot_mjolnir_systemd_wanted_services_list: []
+
+# Whether Mjolnir should talk to the homeserver through Pantalaimon
+# If true, then other variables must be provided including pointing
+# `matrix_bot_mjolnir_homeserver_url` to the Pantalaimon URL.
+matrix_bot_mjolnir_pantalaimon_use: false
+
+# The access token for the bot user. Required when NOT using Pantalaimon.
+# (Otherwise provide `matrix_bot_mjolnir_pantalaimon_username` and `matrix_bot_mjolnir_pantalaimon_password` instead.)
+matrix_bot_mjolnir_access_token: ""
+
+# User name and password for the bot. Required when using Pantalaimon.
+# (Otherwise provide `matrix_bot_mjolnir_access_token` instead.)
+matrix_bot_mjolnir_pantalaimon_username: ""
+matrix_bot_mjolnir_pantalaimon_password: ""
+
+# The room ID where people can use the bot. The bot has no access controls, so
+# anyone in this room can use the bot - secure your room!
+# This should be a room alias or room ID - not a matrix.to URL.
+# Note: Mjolnir is fairly verbose - expect a lot of messages from it.
+matrix_bot_mjolnir_management_room: ""
+
+# Endpoint URL that Mjolnir uses to interact with the Matrix homeserver (client-server API).
+# Set this to the pantalaimon URL if you're using that.
+matrix_bot_mjolnir_homeserver_url: ""
+
+# Endpoint URL that Mjolnir could use to fetch events related to reports (client-server API and /_synapse/),
+# only set this to the public-internet homeserver client API URL, do NOT set this to the pantalaimon URL.
+matrix_bot_mjolnir_raw_homeserver_url: ""
+
+# Default configuration template which covers the generic use case.
+# You can customize it by controlling the various variables inside it.
+#
+# For a more advanced customization, you can extend the default (see `matrix_bot_mjolnir_configuration_extension_yaml`)
+# or completely replace this variable with your own template.
+matrix_bot_mjolnir_configuration_yaml: "{{ lookup('template', 'templates/production.yaml.j2') }}"
+
+matrix_bot_mjolnir_configuration_extension_yaml: |
+  # Your custom YAML configuration goes here.
+  # This configuration extends the default starting configuration (`matrix_bot_mjolnir_configuration_yaml`).
+  #
+  # You can override individual variables from the default configuration, or introduce new ones.
+  #
+  # If you need something more special, you can take full control by
+  # completely redefining `matrix_bot_mjolnir_configuration_yaml`.
+
+matrix_bot_mjolnir_configuration_extension: "{{ matrix_bot_mjolnir_configuration_extension_yaml | from_yaml if matrix_bot_mjolnir_configuration_extension_yaml | from_yaml is mapping else {} }}"
+
+# Holds the final configuration (a combination of the default and its extension).
+# You most likely don't need to touch this variable. Instead, see `matrix_bot_mjolnir_configuration_yaml`.
+matrix_bot_mjolnir_configuration: "{{ matrix_bot_mjolnir_configuration_yaml | from_yaml | combine(matrix_bot_mjolnir_configuration_extension, recursive=True) }}"

@@ -1,0 +1,33 @@
+# SPDX-FileCopyrightText: 2022 MDAD project contributors
+# SPDX-FileCopyrightText: 2022 Marko Weltzer
+# SPDX-FileCopyrightText: 2022 Sebastian Gumprich
+# SPDX-FileCopyrightText: 2022 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2024 Suguru Hirahara
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+
+- name: Check existence of matrix-honoroit service
+  ansible.builtin.stat:
+    path: "{{ devture_systemd_docker_base_systemd_path }}/matrix-bot-honoroit.service"
+  register: matrix_bot_honoroit_service_stat
+
+- when: matrix_bot_honoroit_service_stat.stat.exists | bool
+  block:
+    - name: Ensure matrix-honoroit is stopped
+      ansible.builtin.service:
+        name: matrix-bot-honoroit
+        state: stopped
+        enabled: false
+        daemon_reload: true
+
+    - name: Ensure matrix-bot-honoroit.service doesn't exist
+      ansible.builtin.file:
+        path: "{{ devture_systemd_docker_base_systemd_path }}/matrix-bot-honoroit.service"
+        state: absent
+
+    - name: Ensure Matrix Honoroit paths don't exist
+      ansible.builtin.file:
+        path: "{{ matrix_bot_honoroit_base_path }}"
+        state: absent

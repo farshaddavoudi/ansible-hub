@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2022 Slavi Pantaleev
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+
+- name: Ensure Conduit user registered - {{ user.username | quote }}
+  ansible.builtin.debug:
+    msg: "Not registering user. To register Conduit users, message the Conduit bot"

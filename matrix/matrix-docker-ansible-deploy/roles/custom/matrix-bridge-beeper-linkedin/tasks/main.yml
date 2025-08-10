@@ -1,0 +1,26 @@
+# SPDX-FileCopyrightText: 2021 Alexandar Mechev
+# SPDX-FileCopyrightText: 2022 - 2023 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2022 Marko Weltzer
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+
+- tags:
+    - setup-all
+    - setup-beeper-linkedin
+    - install-all
+    - install-beeper-linkedin
+  block:
+    - when: matrix_beeper_linkedin_enabled | bool
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/validate_config.yml"
+
+    - when: matrix_beeper_linkedin_enabled | bool
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/setup_install.yml"
+
+- tags:
+    - setup-all
+    - setup-beeper-linkedin
+  block:
+    - when: not matrix_beeper_linkedin_enabled | bool
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/setup_uninstall.yml"
