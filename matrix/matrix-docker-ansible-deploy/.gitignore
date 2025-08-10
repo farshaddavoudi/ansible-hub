@@ -1,4 +1,4 @@
-/inventory
+#/inventory
 /roles/**/files/scratchpad
 .DS_Store
 .python-version
