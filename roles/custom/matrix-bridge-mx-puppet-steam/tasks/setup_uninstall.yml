@@ -1,0 +1,26 @@
+# SPDX-FileCopyrightText: 2020 Hugues Morisset
+# SPDX-FileCopyrightText: 2021 - 2022 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2022 Marko Weltzer
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+
+- name: Check existence of matrix-mx-puppet-steam service
+  ansible.builtin.stat:
+    path: "/etc/systemd/system/matrix-mx-puppet-steam.service"
+  register: matrix_mx_puppet_steam_service_stat
+
+- when: matrix_mx_puppet_steam_service_stat.stat.exists | bool
+  block:
+    - name: Ensure matrix-mx-puppet-steam is stopped
+      ansible.builtin.service:
+        name: matrix-mx-puppet-steam
+        state: stopped
+        enabled: false
+        daemon_reload: true
+
+    - name: Ensure matrix-mx-puppet-steam.service doesn't exist
+      ansible.builtin.file:
+        path: "/etc/systemd/system/matrix-mx-puppet-steam.service"
+        state: absent

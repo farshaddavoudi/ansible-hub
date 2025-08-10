@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: 2022 Slavi Pantaleev
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+
+- name: Ensure matrix-synapse-s3-storage-provider-migrate.service and timer don't exist
+  ansible.builtin.file:
+    path: "{{ devture_systemd_docker_base_systemd_path }}/{{ item }}"
+    state: absent
+  with_items:
+    - matrix-synapse-s3-storage-provider-migrate.timer
+    - matrix-synapse-s3-storage-provider-migrate.service
+  register: matrix_synapse_s3_storage_provider_migrate_sevice_removal
+
+- name: Ensure s3-storage-provider files don't exist
+  ansible.builtin.file:
+    path: "{{ matrix_synapse_ext_s3_storage_provider_base_path }}"
+    state: absent

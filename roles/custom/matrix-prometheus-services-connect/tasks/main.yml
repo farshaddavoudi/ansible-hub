@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: 2023 Slavi Pantaleev
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+
+- tags:
+    - setup-all
+    - setup-prometheus
+    - setup-prometheus-services-connect
+    - install-all
+    - install-prometheus-services-connect
+  block:
+    - when: matrix_prometheus_services_connect_synapse_rules_download_enabled | bool
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/install_synapse_rules.yml"

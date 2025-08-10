@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: 2019 - 2023 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2019 Dan Arnfield
+# SPDX-FileCopyrightText: 2019 Marcel Partap
+# SPDX-FileCopyrightText: 2019 Stuart Mumford
+# SPDX-FileCopyrightText: 2020 - 2022 MDAD project contributors
+# SPDX-FileCopyrightText: 2022 Marko Weltzer
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+
+- tags:
+    - run-docker-prune
+  block:
+    - ansible.builtin.include_tasks: "{{ role_path }}/tasks/run_docker_prune.yml"

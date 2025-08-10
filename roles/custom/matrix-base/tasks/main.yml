@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: 2019 - 2024 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2019 Dan Arnfield
+# SPDX-FileCopyrightText: 2020 MDAD project contributors
+# SPDX-FileCopyrightText: 2020 Marcel Partap
+# SPDX-FileCopyrightText: 2022 Marko Weltzer
+# SPDX-FileCopyrightText: 2022 Warren Bailey
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+
+- tags:
+    - setup-all
+    - install-all
+  block:
+    - ansible.builtin.include_tasks: "{{ role_path }}/tasks/validate_config.yml"
+
+# This needs to always run, because it populates `matrix_user_uid` and `matrix_user_gid`,
+# which are required by many other roles.
+- tags:
+    - always
+    - setup-system-user
+    - common
+  block:
+    - ansible.builtin.include_tasks: "{{ role_path }}/tasks/setup_matrix_user.yml"
+
+- tags:
+    - setup-all
+    - install-all
+    - common
+  block:
+    - ansible.builtin.include_tasks: "{{ role_path }}/tasks/setup_matrix_base.yml"

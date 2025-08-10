@@ -1,0 +1,49 @@
+{#
+SPDX-FileCopyrightText: 2021 MDAD project contributors
+SPDX-FileCopyrightText: 2022 - 2024 Slavi Pantaleev
+SPDX-FileCopyrightText: 2022 Kim Brose
+
+SPDX-License-Identifier: AGPL-3.0-or-later
+#}
+
+global:
+  scrape_interval: 5s
+
+  # Attach these labels to any time series or alerts when communicating with
+  # external systems (federation, remote storage, Alertmanager).
+  external_labels:
+    monitor: 'synapse-{{ matrix_domain }}'
+
+rule_files:
+  - /etc/prometheus/synapse-v2.rules
+
+scrape_configs:
+  - job_name: 'synapse'
+    metrics_path: /metrics/synapse/main-process
+    scheme: https
+{% if matrix_synapse_container_labels_public_metrics_middleware_basic_auth_enabled|default(true) %}
+    basic_auth:
+      username: prometheus
+      password_file: /path/to/your/passwordfile.pwd
+{% endif %}
+    static_configs:
+      - targets: ['{{ matrix_synapse_metrics_proxying_hostname }}:443']
+        labels:
+          job: "master"
+          index: "0"
+{% for worker in matrix_synapse_workers_enabled_list %}
+  - job_name: '{{ worker.name }}'
+    metrics_path: /metrics/synapse/worker/{{ worker.id }}
+    scheme: https
+{% if matrix_synapse_worker_container_labels_public_metrics_middleware_basic_auth_enabled|default(true) %}
+    basic_auth:
+      username: prometheus
+      password_file: /path/to/your/passwordfile.pwd
+{% endif %}
+    static_configs:
+      - targets: ['{{ matrix_synapse_metrics_proxying_hostname }}:443']
+        labels:
+          worker_id: {{ worker.id }}
+          job: "{{ worker.type }}"
+          app: {{ worker.app }}
+{% endfor %}

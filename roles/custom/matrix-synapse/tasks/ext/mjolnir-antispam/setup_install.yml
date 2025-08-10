@@ -1,0 +1,39 @@
+# SPDX-FileCopyrightText: 2021 MDAD project contributors
+# SPDX-FileCopyrightText: 2022 - 2023 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2022 Marko Weltzer
+# SPDX-FileCopyrightText: 2022 Sebastian Gumprich
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+
+- name: Ensure git installed
+  ansible.builtin.package:
+    name: git
+    state: present
+
+- name: Clone mjolnir-antispam git repository
+  ansible.builtin.git:
+    repo: "{{ matrix_synapse_ext_spam_checker_mjolnir_antispam_git_repository_url }}"
+    version: "{{ matrix_synapse_ext_spam_checker_mjolnir_antispam_git_version }}"
+    dest: "{{ matrix_synapse_ext_path }}/mjolnir"
+  become: true
+  become_user: "{{ matrix_synapse_username }}"
+
+- ansible.builtin.set_fact:
+    matrix_synapse_modules: >
+      {{
+        matrix_synapse_modules | default([])
+        +
+        [{
+          "module": "mjolnir.Module",
+          "config": matrix_synapse_ext_spam_checker_mjolnir_antispam_config,
+        }]
+      }}
+
+    matrix_synapse_container_extra_arguments: >
+      {{
+        matrix_synapse_container_extra_arguments | default([])
+        +
+        ["--mount type=bind,src=" + matrix_synapse_ext_path + "/mjolnir/synapse_antispam/mjolnir,dst=" + matrix_synapse_in_container_python_packages_path + "/mjolnir,ro"]
+      }}

@@ -1,0 +1,42 @@
+# SPDX-FileCopyrightText: 2022 - 2023 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2022 Aaron Raimist
+# SPDX-FileCopyrightText: 2022 Jip J. Dekker
+# SPDX-FileCopyrightText: 2022 Marko Weltzer
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+
+- tags:
+    - setup-all
+    - setup-dendrite
+    - install-all
+    - install-dendrite
+  block:
+    - when: matrix_dendrite_enabled | bool
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/validate_config.yml"
+
+    - when: matrix_dendrite_enabled | bool
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/setup_install.yml"
+
+- tags:
+    - setup-all
+    - setup-dendrite
+  block:
+    - when: not matrix_dendrite_enabled | bool
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/setup_uninstall.yml"
+
+- tags:
+    - self-check
+  block:
+    - when: matrix_dendrite_enabled | bool
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/self_check_client_api.yml"
+
+    - when: matrix_dendrite_enabled | bool
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/self_check_federation_api.yml"
+
+- tags:
+    - register-user
+  block:
+    - when: matrix_dendrite_enabled | bool
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/register_user.yml"

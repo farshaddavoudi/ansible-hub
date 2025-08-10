@@ -1,0 +1,42 @@
+# SPDX-FileCopyrightText: 2017 - 2022 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2019 Dan Arnfield
+# SPDX-FileCopyrightText: 2019 Jan Christian Grünhage
+# SPDX-FileCopyrightText: 2020 MDAD project contributors
+# SPDX-FileCopyrightText: 2022 Marko Weltzer
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+
+- name: Fail if playbook called incorrectly
+  ansible.builtin.fail:
+    msg: "The `username` variable needs to be provided to this playbook, via --extra-vars"
+  when: "username is not defined or username == '<your-username>'"
+
+- name: Fail if playbook called incorrectly
+  ansible.builtin.fail:
+    msg: "The `password` variable needs to be provided to this playbook, via --extra-vars"
+  when: "password is not defined or password == '<your-password>'"
+
+- name: Fail if playbook called incorrectly
+  ansible.builtin.fail:
+    msg: "The `admin` variable needs to be provided to this playbook, via --extra-vars"
+  when: "admin is not defined or admin not in ['yes', 'no']"
+
+- name: Ensure matrix-synapse is started
+  ansible.builtin.service:
+    name: matrix-synapse
+    state: started
+    daemon_reload: true
+  register: start_result
+
+- name: Wait a while, so that Synapse can manage to start
+  ansible.builtin.pause:
+    seconds: 7
+  when: "start_result.changed"
+
+- name: Register user
+  ansible.builtin.command:
+    cmd: "{{ matrix_synapse_bin_path }}/register-user {{ username | quote }} {{ password | quote }} {{ '1' if admin == 'yes' else '0' }}"
+  register: matrix_synapse_register_user_result
+  changed_when: matrix_synapse_register_user_result.rc == 0

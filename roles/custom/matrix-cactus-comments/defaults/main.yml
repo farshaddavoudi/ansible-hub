@@ -1,0 +1,58 @@
+# SPDX-FileCopyrightText: 2022 - 2023 Julian-Samuel Gebühr
+# SPDX-FileCopyrightText: 2022 - 2025 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2023 Samuel Meenzen
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+# Cactus Comments is a federated comment system built on Matrix.
+# This role installs the backend appservice.
+# Project source code URL: https://gitlab.com/cactus-comments/cactus-appservice
+
+matrix_cactus_comments_enabled: true
+
+matrix_cactus_comments_container_image_self_build: false
+
+matrix_cactus_comments_docker_repo: "https://gitlab.com/cactus-comments/cactus-appservice.git"
+matrix_cactus_comments_docker_repo_version: "{{ matrix_cactus_comments_version if matrix_cactus_comments_version != 'latest' else 'main' }}"
+matrix_cactus_comments_docker_src_files_path: "{{ matrix_cactus_comments_base_path }}/docker-src"
+
+matrix_cactus_comments_base_path: "{{ matrix_base_data_path }}/cactus-comments"
+matrix_cactus_comments_container_tmp_path: "{{ matrix_cactus_comments_base_path }}/tmp"
+
+matrix_cactus_comments_app_service_config_file: "{{ matrix_cactus_comments_base_path }}/cactus_appservice.yaml"
+matrix_cactus_comments_app_service_env_file: "{{ matrix_cactus_comments_base_path }}/cactus.env"
+
+matrix_cactus_comments_as_token: ''
+matrix_cactus_comments_hs_token: ''
+matrix_cactus_comments_homeserver_url: ''
+matrix_cactus_comments_user_id: "bot.cactusbot"
+matrix_cactus_comments_tmp_directory_size_mb: 1
+
+matrix_cactus_comments_container_port: 5000
+
+# renovate: datasource=docker depName=cactuscomments/cactus-appservice
+matrix_cactus_comments_version: 0.9.0
+matrix_cactus_comments_docker_image: "{{ matrix_cactus_comments_docker_image_registry_prefix }}cactuscomments/cactus-appservice:{{ matrix_cactus_comments_docker_image_tag }}"
+matrix_cactus_comments_docker_image_registry_prefix: "{{ 'localhost/' if matrix_cactus_comments_container_image_self_build else matrix_cactus_comments_docker_image_registry_prefix_upstream }}"
+matrix_cactus_comments_docker_image_registry_prefix_upstream: "{{ matrix_cactus_comments_docker_image_registry_prefix_upstream_default }}"
+matrix_cactus_comments_docker_image_registry_prefix_upstream_default: docker.io/
+matrix_cactus_comments_docker_image_tag: "{{ matrix_cactus_comments_version }}"
+matrix_cactus_comments_docker_image_force_pull: "{{ matrix_cactus_comments_docker_image.endswith(':latest') }}"
+
+matrix_cactus_comments_container_network: ""
+
+matrix_cactus_comments_container_additional_networks: "{{ matrix_cactus_comments_container_additional_networks_auto + matrix_cactus_comments_container_additional_networks_custom }}"
+matrix_cactus_comments_container_additional_networks_auto: []
+matrix_cactus_comments_container_additional_networks_custom: []
+
+# A list of extra arguments to pass to the container
+matrix_cactus_comments_container_extra_arguments: []
+
+# List of systemd services that matrix-cactus-comments.service depends on
+matrix_cactus_comments_systemd_required_services_list: "{{ [devture_systemd_docker_base_docker_service_name] if devture_systemd_docker_base_docker_service_name else [] }}"
+
+# List of systemd services that matrix-cactus-comments.service wants
+matrix_cactus_comments_systemd_wanted_services_list: []
+
+matrix_cactus_comments_environment_variables_extension: ''

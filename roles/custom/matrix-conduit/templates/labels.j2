@@ -1,0 +1,141 @@
+{#
+SPDX-FileCopyrightText: 2024 Daniel Lo Nigro
+SPDX-FileCopyrightText: 2024 Slavi Pantaleev
+
+SPDX-License-Identifier: AGPL-3.0-or-later
+#}
+
+{% if matrix_conduit_container_labels_traefik_enabled %}
+traefik.enable=true
+
+{% if matrix_conduit_container_labels_traefik_docker_network %}
+traefik.docker.network={{ matrix_conduit_container_labels_traefik_docker_network }}
+{% endif %}
+
+traefik.http.services.matrix-conduit.loadbalancer.server.port={{ matrix_conduit_port_number }}
+
+
+{% if matrix_conduit_container_labels_public_client_root_enabled %}
+############################################################
+#                                                          #
+# Public Root path (/)                                     #
+#                                                          #
+############################################################
+
+{% set client_root_middlewares = [] %}
+
+{% if matrix_conduit_container_labels_public_client_root_redirection_enabled %}
+{% set client_root_middlewares = client_root_middlewares + ['matrix-conduit-client-root-redirect'] %}
+traefik.http.middlewares.matrix-conduit-client-root-redirect.redirectregex.regex=(.*)
+traefik.http.middlewares.matrix-conduit-client-root-redirect.redirectregex.replacement={{ matrix_conduit_container_labels_public_client_root_redirection_url }}
+{% endif %}
+
+traefik.http.routers.matrix-conduit-public-client-root.rule={{ matrix_conduit_container_labels_public_client_root_traefik_rule }}
+
+traefik.http.routers.matrix-conduit-public-client-root.middlewares={{ client_root_middlewares | join(',') }}
+
+{% if matrix_conduit_container_labels_public_client_root_traefik_priority | int > 0 %}
+traefik.http.routers.matrix-conduit-public-client-root.priority={{ matrix_conduit_container_labels_public_client_root_traefik_priority }}
+{% endif %}
+
+traefik.http.routers.matrix-conduit-public-client-root.service=matrix-conduit
+traefik.http.routers.matrix-conduit-public-client-root.entrypoints={{ matrix_conduit_container_labels_public_client_root_traefik_entrypoints }}
+traefik.http.routers.matrix-conduit-public-client-root.tls={{ matrix_conduit_container_labels_public_client_root_traefik_tls | to_json }}
+
+{% if matrix_conduit_container_labels_public_client_root_traefik_tls %}
+traefik.http.routers.matrix-conduit-public-client-root.tls.certResolver={{ matrix_conduit_container_labels_public_client_root_traefik_tls_certResolver }}
+{% endif %}
+
+############################################################
+#                                                          #
+# /Public Root path (/)                                    #
+#                                                          #
+############################################################
+{% endif %}
+
+
+{% if matrix_conduit_container_labels_public_client_api_enabled %}
+############################################################
+#                                                          #
+# Public Client-API (/_matrix)                             #
+#                                                          #
+############################################################
+
+traefik.http.routers.matrix-conduit-public-client-api.rule={{ matrix_conduit_container_labels_public_client_api_traefik_rule }}
+
+{% if matrix_conduit_container_labels_public_client_api_traefik_priority | int > 0 %}
+traefik.http.routers.matrix-conduit-public-client-api.priority={{ matrix_conduit_container_labels_public_client_api_traefik_priority }}
+{% endif %}
+
+traefik.http.routers.matrix-conduit-public-client-api.service=matrix-conduit
+traefik.http.routers.matrix-conduit-public-client-api.entrypoints={{ matrix_conduit_container_labels_public_client_api_traefik_entrypoints }}
+
+traefik.http.routers.matrix-conduit-public-client-api.tls={{ matrix_conduit_container_labels_public_client_api_traefik_tls | to_json }}
+{% if matrix_conduit_container_labels_public_client_api_traefik_tls %}
+traefik.http.routers.matrix-conduit-public-client-api.tls.certResolver={{ matrix_conduit_container_labels_public_client_api_traefik_tls_certResolver }}
+{% endif %}
+
+############################################################
+#                                                          #
+# /Public Client-API (/_matrix)                            #
+#                                                          #
+############################################################
+{% endif %}
+
+
+{% if matrix_conduit_container_labels_internal_client_api_enabled %}
+############################################################
+#                                                          #
+# Internal Client-API (/_matrix)                           #
+#                                                          #
+############################################################
+
+traefik.http.routers.matrix-conduit-internal-client-api.rule={{ matrix_conduit_container_labels_internal_client_api_traefik_rule }}
+
+{% if matrix_conduit_container_labels_internal_client_api_traefik_priority | int > 0 %}
+traefik.http.routers.matrix-conduit-internal-client-api.priority={{ matrix_conduit_container_labels_internal_client_api_traefik_priority }}
+{% endif %}
+
+traefik.http.routers.matrix-conduit-internal-client-api.service=matrix-conduit
+traefik.http.routers.matrix-conduit-internal-client-api.entrypoints={{ matrix_conduit_container_labels_internal_client_api_traefik_entrypoints }}
+
+############################################################
+#                                                          #
+# /Internal Client-API (/_matrix)                          #
+#                                                          #
+############################################################
+{% endif %}
+
+
+{% if matrix_conduit_container_labels_public_federation_api_enabled %}
+############################################################
+#                                                          #
+# Public Federation-API (/_matrix)                         #
+#                                                          #
+############################################################
+
+traefik.http.routers.matrix-conduit-public-federation-api.rule={{ matrix_conduit_container_labels_public_federation_api_traefik_rule }}
+
+{% if matrix_conduit_container_labels_public_federation_api_traefik_priority | int > 0 %}
+traefik.http.routers.matrix-conduit-public-federation-api.priority={{ matrix_conduit_container_labels_public_federation_api_traefik_priority }}
+{% endif %}
+
+traefik.http.routers.matrix-conduit-public-federation-api.service=matrix-conduit
+traefik.http.routers.matrix-conduit-public-federation-api.entrypoints={{ matrix_conduit_container_labels_public_federation_api_traefik_entrypoints }}
+
+traefik.http.routers.matrix-conduit-public-federation-api.tls={{ matrix_conduit_container_labels_public_federation_api_traefik_tls | to_json }}
+{% if matrix_conduit_container_labels_public_federation_api_traefik_tls %}
+traefik.http.routers.matrix-conduit-public-federation-api.tls.certResolver={{ matrix_conduit_container_labels_public_federation_api_traefik_tls_certResolver }}
+{% endif %}
+
+############################################################
+#                                                          #
+# /Public Federation-API (/_matrix)                        #
+#                                                          #
+############################################################
+{% endif %}
+
+
+{% endif %}
+
+{{ matrix_conduit_container_labels_additional_labels }}

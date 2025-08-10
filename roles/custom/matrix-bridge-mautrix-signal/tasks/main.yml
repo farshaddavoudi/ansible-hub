@@ -1,0 +1,36 @@
+# SPDX-FileCopyrightText: 2020 MDAD project contributors
+# SPDX-FileCopyrightText: 2022 - 2024 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2022 Marko Weltzer
+# SPDX-FileCopyrightText: 2023 Adrien le Maire
+# SPDX-FileCopyrightText: 2023 Pierre 'McFly' Marty
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+
+- tags:
+    - setup-all
+    - setup-mautrix-signal
+    - install-all
+    - install-mautrix-signal
+  block:
+    - ansible.builtin.include_tasks: "{{ role_path }}/tasks/remove_legacy.yml"
+
+- tags:
+    - setup-all
+    - setup-mautrix-signal
+    - install-all
+    - install-mautrix-signal
+  block:
+    - when: matrix_mautrix_signal_enabled | bool
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/validate_config.yml"
+
+    - when: matrix_mautrix_signal_enabled | bool
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/setup_install.yml"
+
+- tags:
+    - setup-all
+    - setup-mautrix-signal
+  block:
+    - when: not matrix_mautrix_signal_enabled | bool
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/setup_uninstall.yml"

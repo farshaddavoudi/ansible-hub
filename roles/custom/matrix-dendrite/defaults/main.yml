@@ -1,0 +1,363 @@
+# SPDX-FileCopyrightText: 2022 - 2023 MDAD project contributors
+# SPDX-FileCopyrightText: 2022 - 2025 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2022 Aaron Raimist
+# SPDX-FileCopyrightText: 2022 Darren Rambaud
+# SPDX-FileCopyrightText: 2022 Jip J. Dekker
+# SPDX-FileCopyrightText: 2022 Marko Weltzer
+# SPDX-FileCopyrightText: 2022 Nikita Chernyi
+# SPDX-FileCopyrightText: 2022 Shaleen Jain
+# SPDX-FileCopyrightText: 2023 Isaiah Becker-Mayer
+# SPDX-FileCopyrightText: 2023 Samuel Meenzen
+# SPDX-FileCopyrightText: 2024 Suguru Hirahara
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+# Dendrite is a second-generation Matrix homeserver currently in Beta
+# Project source code URL: https://github.com/matrix-org/dendrite
+
+matrix_dendrite_enabled: true
+
+matrix_dendrite_hostname: ''
+
+matrix_dendrite_container_image_self_build: false
+matrix_dendrite_container_image_self_build_repo: "https://github.com/matrix-org/dendrite.git"
+
+matrix_dendrite_docker_image_path: "matrixdotorg/dendrite-monolith"
+matrix_dendrite_docker_image: "{{ matrix_dendrite_docker_image_registry_prefix }}{{ matrix_dendrite_docker_image_path }}:{{ matrix_dendrite_docker_image_tag }}"
+matrix_dendrite_docker_image_registry_prefix: "{{ 'localhost/' if matrix_dendrite_container_image_self_build else matrix_dendrite_docker_image_registry_prefix_upstream }}"
+matrix_dendrite_docker_image_registry_prefix_upstream: "{{ matrix_dendrite_docker_image_registry_prefix_upstream_default }}"
+matrix_dendrite_docker_image_registry_prefix_upstream_default: docker.io/
+# renovate: datasource=docker depName=matrixdotorg/dendrite-monolith
+matrix_dendrite_docker_image_tag: "v0.14.1"
+matrix_dendrite_docker_image_force_pull: "{{ matrix_dendrite_docker_image.endswith(':latest') }}"
+
+matrix_dendrite_base_path: "{{ matrix_base_data_path }}/dendrite"
+matrix_dendrite_config_dir_path: "{{ matrix_dendrite_base_path }}/config"
+matrix_dendrite_storage_path: "{{ matrix_dendrite_base_path }}/storage"
+matrix_dendrite_media_store_path: "{{ matrix_dendrite_storage_path }}/media-store"
+matrix_dendrite_nats_storage_path: "{{ matrix_dendrite_base_path }}/nats"
+matrix_dendrite_bin_path: "{{ matrix_dendrite_base_path }}/bin"
+matrix_dendrite_ext_path: "{{ matrix_dendrite_base_path }}/ext"
+
+matrix_dendrite_docker_src_files_path: "{{ matrix_dendrite_base_path }}/docker-src"
+
+# By default, we make Dendrite only serve HTTP (not HTTPS).
+# HTTPS is usually served at the reverse-proxy side.
+#
+# To enable HTTPS serving by Dendrite (directly):
+# - `matrix_dendrite_https_bind_port` must be set
+# - `-tls-cert` and `-tls-key` must be passed to Dendrite via `matrix_dendrite_process_extra_arguments`
+# - the TLS certificate files must be mounted into the container using `matrix_dendrite_container_additional_volumes`
+matrix_dendrite_http_bind_port: 8008
+matrix_dendrite_https_bind_port: ~
+
+# This is passed as an `-http-bind-address` flag to the Dendrite server in the container
+matrix_dendrite_http_bind_address: "{{ (':' + matrix_dendrite_http_bind_port | string) if matrix_dendrite_http_bind_port else '' }}"
+
+# This is passed as an `-https-bind-address` flag to the Dendrite server in the container
+matrix_dendrite_https_bind_address: "{{ (':' + matrix_dendrite_https_bind_port | string) if matrix_dendrite_https_bind_port else '' }}"
+
+# The base container network. It will be auto-created by this role if it doesn't exist already.
+matrix_dendrite_container_network: ""
+
+# A list of additional container networks that the container would be connected to.
+# The role does not create these networks, so make sure they already exist.
+# Use this to expose this container to another reverse proxy, which runs in a different container network.
+matrix_dendrite_container_additional_networks: "{{ matrix_dendrite_container_additional_networks_auto + matrix_dendrite_container_additional_networks_custom }}"
+matrix_dendrite_container_additional_networks_auto: []
+matrix_dendrite_container_additional_networks_custom: []
+
+# Controls whether the matrix-dendrite container exposes the HTTP port (tcp/{{ matrix_dendrite_http_bind_port }} in the container).
+#
+# Takes an "<ip>:<port>" or "<port>" value (e.g. "127.0.0.1:8008"), or empty string to not expose.
+matrix_dendrite_container_http_host_bind_address: ""
+
+# Controls whether the matrix-dendrite container exposes the HTTPS port (tcp/{{ matrix_dendrite_https_bind_port }} in the container).
+#
+# Takes an "<ip>:<port>" or "<port>" value (e.g. "127.0.0.1:8448"), or empty string to not expose.
+matrix_dendrite_container_https_host_bind_address: ""
+
+# matrix_dendrite_container_labels_traefik_enabled controls whether labels to assist a Traefik reverse-proxy will be attached to the container.
+# See `../templates/labels.j2` for details.
+#
+# To inject your own other container labels, see `matrix_dendrite_container_labels_additional_labels`.
+matrix_dendrite_container_labels_traefik_enabled: true
+matrix_dendrite_container_labels_traefik_docker_network: "{{ matrix_dendrite_container_network }}"
+matrix_dendrite_container_labels_traefik_entrypoints: web-secure
+matrix_dendrite_container_labels_traefik_tls_certResolver: default  # noqa var-naming
+
+# Controls whether labels will be added for handling the root (/) path on a public Traefik entrypoint.
+matrix_dendrite_container_labels_public_client_root_enabled: true
+matrix_dendrite_container_labels_public_client_root_traefik_hostname: "{{ matrix_dendrite_hostname }}"
+matrix_dendrite_container_labels_public_client_root_traefik_rule: "Host(`{{ matrix_dendrite_container_labels_public_client_root_traefik_hostname }}`) && Path(`/`)"
+matrix_dendrite_container_labels_public_client_root_traefik_priority: 0
+matrix_dendrite_container_labels_public_client_root_traefik_entrypoints: "{{ matrix_dendrite_container_labels_traefik_entrypoints }}"
+matrix_dendrite_container_labels_public_client_root_traefik_tls: "{{ matrix_dendrite_container_labels_public_client_root_traefik_entrypoints != 'web' }}"
+matrix_dendrite_container_labels_public_client_root_traefik_tls_certResolver: "{{ matrix_dendrite_container_labels_traefik_tls_certResolver }}"  # noqa var-naming
+matrix_dendrite_container_labels_public_client_root_redirection_enabled: false
+matrix_dendrite_container_labels_public_client_root_redirection_url: ""
+
+# Controls whether labels will be added that expose the Client-Server API on a public Traefik entrypoint.
+matrix_dendrite_container_labels_public_client_api_enabled: true
+matrix_dendrite_container_labels_public_client_api_traefik_hostname: "{{ matrix_dendrite_hostname }}"
+matrix_dendrite_container_labels_public_client_api_traefik_path_prefix: /_matrix
+matrix_dendrite_container_labels_public_client_api_traefik_rule: "Host(`{{ matrix_dendrite_container_labels_public_client_api_traefik_hostname }}`) && PathPrefix(`{{ matrix_dendrite_container_labels_public_client_api_traefik_path_prefix }}`)"
+matrix_dendrite_container_labels_public_client_api_traefik_priority: 0
+matrix_dendrite_container_labels_public_client_api_traefik_entrypoints: "{{ matrix_dendrite_container_labels_traefik_entrypoints }}"
+matrix_dendrite_container_labels_public_client_api_traefik_tls: "{{ matrix_dendrite_container_labels_public_client_api_traefik_entrypoints != 'web' }}"
+matrix_dendrite_container_labels_public_client_api_traefik_tls_certResolver: "{{ matrix_dendrite_container_labels_traefik_tls_certResolver }}"  # noqa var-naming
+
+# Controls whether labels will be added that expose the Client-Server API on the internal Traefik entrypoint.
+# This is similar to `matrix_dendrite_container_labels_public_client_api_enabled`, but the entrypoint and intent is different.
+matrix_dendrite_container_labels_internal_client_api_enabled: false
+matrix_dendrite_container_labels_internal_client_api_traefik_path_prefix: "{{ matrix_dendrite_container_labels_public_client_api_traefik_path_prefix }}"
+matrix_dendrite_container_labels_internal_client_api_traefik_rule: "PathPrefix(`{{ matrix_dendrite_container_labels_internal_client_api_traefik_path_prefix }}`)"
+matrix_dendrite_container_labels_internal_client_api_traefik_priority: "{{ matrix_dendrite_container_labels_public_client_api_traefik_priority }}"
+matrix_dendrite_container_labels_internal_client_api_traefik_entrypoints: ""
+
+# Controls whether labels will be added that expose the /_synapse/admin paths on a public Traefik entrypoint.
+# Following these recommendations (https://github.com/element-hq/synapse/blob/master/docs/reverse_proxy.md), by default, we don't.
+# Dendrite exposes some admin APIs under a Synapse-specific prefix.
+# See: https://matrix-org.github.io/dendrite/administration/adminapi
+matrix_dendrite_container_labels_public_client_synapse_admin_api_enabled: false
+matrix_dendrite_container_labels_public_client_synapse_admin_api_traefik_hostname: "{{ matrix_dendrite_hostname }}"
+matrix_dendrite_container_labels_public_client_synapse_admin_api_traefik_path_prefix: /_synapse/admin
+matrix_dendrite_container_labels_public_client_synapse_admin_api_traefik_rule: "Host(`{{ matrix_dendrite_container_labels_public_client_synapse_admin_api_traefik_hostname }}`) && PathPrefix(`{{ matrix_dendrite_container_labels_public_client_synapse_admin_api_traefik_path_prefix }}`)"
+matrix_dendrite_container_labels_public_client_synapse_admin_api_traefik_priority: 0
+matrix_dendrite_container_labels_public_client_synapse_admin_api_traefik_entrypoints: "{{ matrix_dendrite_container_labels_traefik_entrypoints }}"
+matrix_dendrite_container_labels_public_client_synapse_admin_api_traefik_tls: "{{ matrix_dendrite_container_labels_public_client_synapse_admin_api_traefik_entrypoints != 'web' }}"
+matrix_dendrite_container_labels_public_client_synapse_admin_api_traefik_tls_certResolver: "{{ matrix_dendrite_container_labels_traefik_tls_certResolver }}"  # noqa var-naming
+
+# Controls whether labels will be added that expose the /_dendrite/admin paths on a public Traefik entrypoint.
+# See: https://matrix-org.github.io/dendrite/administration/adminapi
+matrix_dendrite_container_labels_public_client_dendrite_admin_api_enabled: false
+matrix_dendrite_container_labels_public_client_dendrite_admin_api_traefik_hostname: "{{ matrix_dendrite_hostname }}"
+matrix_dendrite_container_labels_public_client_dendrite_admin_api_traefik_path_prefix: /_dendrite/admin
+matrix_dendrite_container_labels_public_client_dendrite_admin_api_traefik_rule: "Host(`{{ matrix_dendrite_container_labels_public_client_dendrite_admin_api_traefik_hostname }}`) && PathPrefix(`{{ matrix_dendrite_container_labels_public_client_dendrite_admin_api_traefik_path_prefix }}`)"
+matrix_dendrite_container_labels_public_client_dendrite_admin_api_traefik_priority: 0
+matrix_dendrite_container_labels_public_client_dendrite_admin_api_traefik_entrypoints: "{{ matrix_dendrite_container_labels_traefik_entrypoints }}"
+matrix_dendrite_container_labels_public_client_dendrite_admin_api_traefik_tls: "{{ matrix_dendrite_container_labels_public_client_dendrite_admin_api_traefik_entrypoints != 'web' }}"
+matrix_dendrite_container_labels_public_client_dendrite_admin_api_traefik_tls_certResolver: "{{ matrix_dendrite_container_labels_traefik_tls_certResolver }}"  # noqa var-naming
+
+# Controls whether labels will be added that expose the Server-Server API (Federation API) on a public Traefik entrypoint.
+matrix_dendrite_container_labels_public_federation_api_enabled: "{{ matrix_dendrite_federation_enabled }}"
+matrix_dendrite_container_labels_public_federation_api_traefik_hostname: "{{ matrix_dendrite_hostname }}"
+matrix_dendrite_container_labels_public_federation_api_traefik_path_prefix: /_matrix
+matrix_dendrite_container_labels_public_federation_api_traefik_rule: "Host(`{{ matrix_dendrite_container_labels_public_federation_api_traefik_hostname }}`) && PathPrefix(`{{ matrix_dendrite_container_labels_public_federation_api_traefik_path_prefix }}`)"
+matrix_dendrite_container_labels_public_federation_api_traefik_priority: 0
+matrix_dendrite_container_labels_public_federation_api_traefik_entrypoints: ''
+# TLS is force-enabled here, because the spec (https://spec.matrix.org/v1.9/server-server-api/#tls) says that the federation API must use HTTPS.
+matrix_dendrite_container_labels_public_federation_api_traefik_tls: true
+matrix_dendrite_container_labels_public_federation_api_traefik_tls_certResolver: "{{ matrix_dendrite_container_labels_traefik_tls_certResolver }}"  # noqa var-naming
+
+# Controls whether labels will be added that expose Dendrite's metrics on a public Traefik entrypoint.
+matrix_dendrite_container_labels_public_metrics_enabled: "{{ matrix_dendrite_metrics_enabled and matrix_dendrite_metrics_proxying_enabled }}"
+matrix_dendrite_container_labels_public_metrics_traefik_rule: "Host(`{{ matrix_dendrite_metrics_proxying_hostname }}`) && PathPrefix(`{{ matrix_dendrite_metrics_proxying_path_prefix }}`)"
+matrix_dendrite_container_labels_public_metrics_traefik_priority: 0
+matrix_dendrite_container_labels_public_metrics_traefik_entrypoints: "{{ matrix_dendrite_container_labels_traefik_entrypoints }}"
+matrix_dendrite_container_labels_public_metrics_traefik_tls: "{{ matrix_dendrite_container_labels_public_metrics_traefik_entrypoints != 'web' }}"
+matrix_dendrite_container_labels_public_metrics_traefik_tls_certResolver: "{{ matrix_dendrite_container_labels_traefik_tls_certResolver }}"  # noqa var-naming
+matrix_dendrite_container_labels_public_metrics_middleware_basic_auth_enabled: false
+# See: https://doc.traefik.io/traefik/middlewares/http/basicauth/#users
+matrix_dendrite_container_labels_public_metrics_middleware_basic_auth_users: ''
+
+# matrix_dendrite_container_labels_additional_labels contains a multiline string with additional labels to add to the container label file.
+# See `../templates/labels.j2` for details.
+#
+# Example:
+# matrix_dendrite_container_labels_additional_labels: |
+#   my.label=1
+#   another.label="here"
+matrix_dendrite_container_labels_additional_labels: ''
+
+# A list of extra arguments to pass to the container (`docker run` command)
+# Also see `matrix_dendrite_container_arguments`
+matrix_dendrite_container_extra_arguments: []
+
+# matrix_dendrite_container_extra_arguments_auto is a list of extra arguments to pass to the container.
+# This list is managed by the playbook. You're not meant to override this variable.
+# If you'd like to inject your own arguments, see `matrix_dendrite_container_extra_arguments`.
+matrix_dendrite_container_extra_arguments_auto: []
+
+# matrix_dendrite_container_arguments holds the final list of extra arguments to pass to the container.
+# You're not meant to override this variable.
+# If you'd like to inject your own arguments, see `matrix_dendrite_container_extra_arguments`.
+matrix_dendrite_container_arguments: "{{ matrix_dendrite_container_extra_arguments + matrix_dendrite_container_extra_arguments_auto }}"
+
+# A list of extra arguments to pass to the container process (`dendrite-monolith` command)
+# Example:
+# matrix_dendrite_process_extra_arguments:
+#  - "-tls-cert /some/path.crt"
+#  - "-tls-key /some/path.pem"
+matrix_dendrite_process_extra_arguments: []
+
+# List of systemd services that matrix-dendrite.service depends on
+matrix_dendrite_systemd_required_services_list: "{{ matrix_dendrite_systemd_required_services_list_default + matrix_dendrite_systemd_required_services_list_auto + matrix_dendrite_systemd_required_services_list_custom }}"
+matrix_dendrite_systemd_required_services_list_default: "{{ [devture_systemd_docker_base_docker_service_name] if devture_systemd_docker_base_docker_service_name else [] }}"
+matrix_dendrite_systemd_required_services_list_auto: []
+matrix_dendrite_systemd_required_services_list_custom: []
+
+# List of systemd services that matrix-dendrite.service wants
+matrix_dendrite_systemd_wanted_services_list: "{{ matrix_dendrite_systemd_wanted_services_list_default + matrix_dendrite_systemd_wanted_services_list_auto + matrix_dendrite_systemd_wanted_services_list_custom }}"
+matrix_dendrite_systemd_wanted_services_list_default: "{{ [devture_systemd_docker_base_docker_service_name] if devture_systemd_docker_base_docker_service_name else [] }}"
+matrix_dendrite_systemd_wanted_services_list_auto: []
+matrix_dendrite_systemd_wanted_services_list_custom: []
+
+# Controls how long to sleep for after starting the matrix-dendrite container.
+#
+# Delaying, so that the homeserver can manage to fully start and various services
+# that depend on it (`matrix_dendrite_systemd_required_services_list` and `matrix_dendrite_systemd_wanted_services_list`)
+# may only start after the homeserver is up and running.
+#
+# This can be set to 0 to remove the delay.
+matrix_dendrite_systemd_service_post_start_delay_seconds: 3
+
+# Specifies which template files to use when configuring Dendrite.
+# If you'd like to have your own different configuration, feel free to copy and paste
+# the original files into your inventory (e.g. in `inventory/host_vars/matrix.example.com/`)
+# and then change the specific host's `vars.yml` file like this:
+# matrix_dendrite_template_dendrite_config: "{{ playbook_dir }}/inventory/host_vars/matrix.example.com/dendrite.yaml.j2"
+matrix_dendrite_template_dendrite_config: "{{ role_path }}/templates/dendrite.yaml.j2"
+
+matrix_dendrite_client_api_registration_shared_secret: ""
+matrix_dendrite_allow_guest_access: false
+
+matrix_dendrite_max_file_size_bytes: 10485760
+
+# Controls which HTTP header (e.g. 'X-Forwarded-For', 'X-Real-IP') to inspect to find the real remote IP address of the client.
+# This is likely required if Dendrite is running behind a reverse proxy server.
+matrix_dendrite_sync_api_real_ip_header: "X-Forwarded-For"
+
+# The tmpfs at /tmp needs to be large enough to handle multiple concurrent file uploads.
+matrix_dendrite_tmp_directory_size_mb: 500
+
+# Rate limits
+matrix_dendrite_client_api_rate_limiting_enabled: true
+matrix_dendrite_client_api_rate_limiting_threshold: 20
+matrix_dendrite_client_api_rate_limiting_cooloff_ms: 500
+
+# Controls whether people with access to the homeserver can register by themselves.
+matrix_dendrite_client_api_registration_disabled: true
+
+# Controls whether guest accounts are disabled
+matrix_dendrite_guests_disabled: true
+
+# reCAPTCHA API for validating registration attempts
+matrix_dendrite_client_api_enable_registration_captcha: false
+matrix_dendrite_client_api_recaptcha_public_key: ""
+matrix_dendrite_client_api_recaptcha_private_key: ""
+matrix_dendrite_client_api_recaptcha_siteverify_api: ""
+matrix_dendrite_client_api_recaptcha_api_js_url: ""
+matrix_dendrite_client_api_recaptcha_form_field: ""
+matrix_dendrite_client_api_recaptcha_sitekey_class: ""
+
+# A list of additional "volumes" to mount in the container.
+# This list gets populated dynamically based on Dendrite extensions that have been enabled.
+# Contains definition objects like this: `{"src": "/outside", "dst": "/inside", "options": "ro"}
+# Note: internally, this uses the `--mount` flag for mounting the specified volumes.
+matrix_dendrite_container_additional_volumes: []
+
+# A list of appservice config files (in-container filesystem paths).
+# This list gets populated dynamically based on Dendrite extensions that have been enabled.
+# You may wish to use this together with `matrix_dendrite_container_additional_volumes` or `matrix_dendrite_container_extra_arguments`.
+# Also see `matrix_dendrite_app_service_config_files_final`
+matrix_dendrite_app_service_config_files: []
+
+# matrix_dendrite_app_service_config_files_auto is a list of appservice config files.
+# This list is managed by the playbook. You're not meant to override this variable.
+# If you'd like to inject your own arguments, see `matrix_dendrite_app_service_config_files`.
+matrix_dendrite_app_service_config_files_auto: []
+
+# matrix_dendrite_app_service_config_files_final holds the final list of config files to pass to the container.
+# You're not meant to override this variable.
+# If you'd like to inject your own arguments, see `matrix_dendrite_app_service_config_files`.
+matrix_dendrite_app_service_config_files_final: "{{ matrix_dendrite_app_service_config_files + matrix_dendrite_app_service_config_files_auto }}"
+
+# Enable exposure of metrics
+matrix_dendrite_metrics_enabled: false
+matrix_dendrite_metrics_username: ""
+matrix_dendrite_metrics_password: ""
+
+# Controls whether metrics should be exposed on a public URL.
+matrix_dendrite_metrics_proxying_enabled: false
+matrix_dendrite_metrics_proxying_hostname: "{{ matrix_dendrite_hostname }}"
+matrix_dendrite_metrics_proxying_path_prefix: /metrics/dendrite
+
+# Postgres database information
+matrix_dendrite_database_str: "postgresql://{{ matrix_dendrite_database_user }}:{{ matrix_dendrite_database_password }}@{{ matrix_dendrite_database_hostname }}"
+matrix_dendrite_database_hostname: ""
+matrix_dendrite_database_user: "dendrite"
+matrix_dendrite_database_password: "itsasecret"
+matrix_dendrite_database_sslmode: disable
+matrix_dendrite_federation_api_database: "dendrite_federationapi"
+matrix_dendrite_key_server_database: "dendrite_keyserver"
+matrix_dendrite_media_api_database: "dendrite_mediaapi"
+matrix_dendrite_room_database: "dendrite_room"
+matrix_dendrite_sync_api_database: "dendrite_syncapi"
+matrix_dendrite_user_api_database: "dendrite_userapi"
+matrix_dendrite_push_server_database: "dendrite_pushserver"
+matrix_dendrite_relay_api_database: "dendrite_relayapi"
+matrix_dendrite_mscs_database: "dendrite_mscs"
+
+matrix_dendrite_client_api_turn_uris: []
+matrix_dendrite_client_api_turn_shared_secret: ""
+matrix_dendrite_client_api_turn_username: ""
+matrix_dendrite_client_api_turn_password: ""
+matrix_dendrite_client_api_turn_allow_guests: false
+
+matrix_dendrite_disable_tls_validation: false
+
+matrix_dendrite_trusted_id_servers:
+  - "matrix.org"
+  - "vector.im"
+
+# Controls whether Dendrite will federate at all.
+# Disable this to completely isolate your server from the rest of the Matrix network.
+matrix_dendrite_federation_enabled: true
+
+# Controls whether the self-check feature should validate SSL certificates.
+matrix_dendrite_self_check_validate_certificates: true
+
+# Default Dendrite configuration template which covers the generic use case.
+# You can customize it by controlling the various variables inside it.
+#
+# For a more advanced customization, you can extend the default (see `matrix_dendrite_configuration_extension_yaml`)
+# or completely replace this variable with your own template.
+matrix_dendrite_configuration_yaml: "{{ lookup('template', matrix_dendrite_template_dendrite_config) }}"
+
+matrix_dendrite_configuration_extension_yaml: |
+  # Your custom YAML configuration for Dendrite goes here.
+  # This configuration extends the default starting configuration (`matrix_dendrite_configuration_yaml`).
+  #
+  # You can override individual variables from the default configuration, or introduce new ones.
+  #
+  # If you need something more special, you can take full control by
+  # completely redefining `matrix_dendrite_configuration_yaml`.
+  #
+  # Example configuration extension follows:
+  #
+  # server_notices:
+  #   system_mxid_localpart: notices
+  #   system_mxid_display_name: "Server Notices"
+  #   system_mxid_avatar_url: "mxc://example.com/oumMVlgDnLYFaPVkExemNVVZ"
+  #   room_name: "Server Notices"
+
+matrix_dendrite_configuration_extension: "{{ matrix_dendrite_configuration_extension_yaml | from_yaml if matrix_dendrite_configuration_extension_yaml | from_yaml is mapping else {} }}"
+
+# Holds the final Dendrite configuration (a combination of the default and its extension).
+# You most likely don't need to touch this variable. Instead, see `matrix_dendrite_configuration_yaml`.
+matrix_dendrite_configuration: "{{ matrix_dendrite_configuration_yaml | from_yaml | combine(matrix_dendrite_configuration_extension, recursive=True) }}"
+
+matrix_dendrite_user_api_auto_join_rooms: []
+
+# statistics reporting configuration. These statistics contain the server
+# name, number of active users and some information on your deployment config.
+matrix_dendrite_report_stats: false
+
+# Controls whether thumbnails for media content are generated dynamically
+matrix_dendrite_media_api_dynamic_thumbnails: false
+matrix_dendrite_media_api_max_thumbnail_generators: 10
+
+# Controls whether the full-text search engine is enabled
+matrix_dendrite_sync_api_search_enabled: false

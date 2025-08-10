@@ -1,0 +1,16 @@
+{#
+SPDX-FileCopyrightText: 2024 Slavi Pantaleev
+
+SPDX-License-Identifier: AGPL-3.0-or-later
+#}
+
+[Default]
+LogLevel = {{ matrix_pantalaimon_log_level }}
+
+[homeserver]
+Homeserver = {{ matrix_pantalaimon_homeserver_url }}
+ListenAddress = 0.0.0.0
+ListenPort = 8009
+SSL = False
+UseKeyring = False
+IgnoreVerification = True

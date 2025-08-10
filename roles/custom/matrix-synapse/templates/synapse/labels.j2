@@ -1,0 +1,333 @@
+{#
+SPDX-FileCopyrightText: 2024 Slavi Pantaleev
+
+SPDX-License-Identifier: AGPL-3.0-or-later
+#}
+
+{% if matrix_synapse_container_labels_traefik_enabled %}
+traefik.enable=true
+
+{% if matrix_synapse_container_labels_traefik_docker_network %}
+traefik.docker.network={{ matrix_synapse_container_labels_traefik_docker_network }}
+{% endif %}
+
+traefik.http.services.matrix-synapse-client-api.loadbalancer.server.port={{ matrix_synapse_container_client_api_port }}
+traefik.http.services.matrix-synapse-federation-api.loadbalancer.server.port={{ matrix_synapse_container_federation_api_plain_port }}
+traefik.http.services.matrix-synapse-metrics.loadbalancer.server.port={{ matrix_synapse_metrics_port }}
+
+
+{% if matrix_synapse_container_labels_public_client_root_enabled %}
+############################################################
+#                                                          #
+# Public Root path (/)                                     #
+#                                                          #
+############################################################
+
+{% set client_root_middlewares = [] %}
+
+{% if matrix_synapse_container_labels_traefik_compression_middleware_enabled %}
+{% set client_root_middlewares = client_root_middlewares + [matrix_synapse_container_labels_traefik_compression_middleware_name] %}
+{% endif %}
+
+{% if matrix_synapse_container_labels_public_client_root_redirection_enabled %}
+{% set client_root_middlewares = client_root_middlewares + ['matrix-synapse-public-client-root-redirect'] %}
+traefik.http.middlewares.matrix-synapse-public-client-root-redirect.redirectregex.regex=(.*)
+traefik.http.middlewares.matrix-synapse-public-client-root-redirect.redirectregex.replacement={{ matrix_synapse_container_labels_public_client_root_redirection_url }}
+{% else %}
+{% set client_root_middlewares = client_root_middlewares + ['matrix-synapse-public-client-root-replacepath'] %}
+traefik.http.middlewares.matrix-synapse-public-client-root-replacepath.replacepath.path=/_matrix/static/
+{% endif %}
+
+traefik.http.routers.matrix-synapse-public-client-root.rule={{ matrix_synapse_container_labels_public_client_root_traefik_rule }}
+
+traefik.http.routers.matrix-synapse-public-client-root.middlewares={{ client_root_middlewares | join(',') }}
+
+{% if matrix_synapse_container_labels_public_client_root_traefik_priority | int > 0 %}
+traefik.http.routers.matrix-synapse-public-client-root.priority={{ matrix_synapse_container_labels_public_client_root_traefik_priority }}
+{% endif %}
+
+traefik.http.routers.matrix-synapse-public-client-root.service=matrix-synapse-client-api
+traefik.http.routers.matrix-synapse-public-client-root.entrypoints={{ matrix_synapse_container_labels_public_client_root_traefik_entrypoints }}
+traefik.http.routers.matrix-synapse-public-client-root.tls={{ matrix_synapse_container_labels_public_client_root_traefik_tls | to_json }}
+
+{% if matrix_synapse_container_labels_public_client_root_traefik_tls %}
+traefik.http.routers.matrix-synapse-public-client-root.tls.certResolver={{ matrix_synapse_container_labels_public_client_root_traefik_tls_certResolver }}
+{% endif %}
+
+############################################################
+#                                                          #
+# /Public Root path (/)                                    #
+#                                                          #
+############################################################
+{% endif %}
+
+
+{% if matrix_synapse_container_labels_matrix_related_labels_enabled %}
+############################################################
+#                                                          #
+# MATRIX-RELATED (/_matrix, /_synapse/..)                  #
+#                                                          #
+############################################################
+
+{% if matrix_synapse_container_labels_public_client_api_enabled %}
+############################################################
+#                                                          #
+# Public Client-API (/_matrix)                             #
+#                                                          #
+############################################################
+
+{% set client_api_middlewares = [] %}
+
+{% if matrix_synapse_container_labels_traefik_compression_middleware_enabled %}
+{% set client_api_middlewares = client_api_middlewares + [matrix_synapse_container_labels_traefik_compression_middleware_name] %}
+{% endif %}
+
+traefik.http.routers.matrix-synapse-public-client-api.rule={{ matrix_synapse_container_labels_public_client_api_traefik_rule }}
+
+{% if client_api_middlewares | length > 0 %}
+traefik.http.routers.matrix-synapse-public-client-api.middlewares={{ client_api_middlewares | join(',') }}
+{% endif %}
+
+{% if matrix_synapse_container_labels_public_client_api_traefik_priority | int > 0 %}
+traefik.http.routers.matrix-synapse-public-client-api.priority={{ matrix_synapse_container_labels_public_client_api_traefik_priority }}
+{% endif %}
+
+traefik.http.routers.matrix-synapse-public-client-api.service=matrix-synapse-client-api
+traefik.http.routers.matrix-synapse-public-client-api.entrypoints={{ matrix_synapse_container_labels_public_client_api_traefik_entrypoints }}
+traefik.http.routers.matrix-synapse-public-client-api.tls={{ matrix_synapse_container_labels_public_client_api_traefik_tls | to_json }}
+
+{% if matrix_synapse_container_labels_public_client_api_traefik_tls %}
+traefik.http.routers.matrix-synapse-public-client-api.tls.certResolver={{ matrix_synapse_container_labels_public_client_api_traefik_tls_certResolver }}
+{% endif %}
+
+############################################################
+#                                                          #
+# /Public Client-API (/_matrix)                            #
+#                                                          #
+############################################################
+{% endif %}
+
+
+
+{% if matrix_synapse_container_labels_internal_client_api_enabled %}
+############################################################
+#                                                          #
+# Internal Client-API (/_matrix)                           #
+#                                                          #
+############################################################
+
+traefik.http.routers.matrix-synapse-internal-client-api.rule={{ matrix_synapse_container_labels_internal_client_api_traefik_rule }}
+
+{% if matrix_synapse_container_labels_internal_client_api_traefik_priority | int > 0 %}
+traefik.http.routers.matrix-synapse-internal-client-api.priority={{ matrix_synapse_container_labels_internal_client_api_traefik_priority }}
+{% endif %}
+
+traefik.http.routers.matrix-synapse-internal-client-api.service=matrix-synapse-client-api
+traefik.http.routers.matrix-synapse-internal-client-api.entrypoints={{ matrix_synapse_container_labels_internal_client_api_traefik_entrypoints }}
+
+############################################################
+#                                                          #
+# /Internal Client-API (/_matrix)                          #
+#                                                          #
+############################################################
+{% endif %}
+
+
+{% if matrix_synapse_container_labels_public_client_synapse_client_api_enabled %}
+############################################################
+#                                                          #
+# Public Synapse Client API (/_synapse/client)             #
+#                                                          #
+############################################################
+
+{% set synapse_client_api_middlewares = [] %}
+
+{% if matrix_synapse_container_labels_traefik_compression_middleware_enabled %}
+{% set synapse_client_api_middlewares = synapse_client_api_middlewares + [matrix_synapse_container_labels_traefik_compression_middleware_name] %}
+{% endif %}
+
+traefik.http.routers.matrix-synapse-public-client-synapse-client-api.rule={{ matrix_synapse_container_labels_public_client_synapse_client_api_traefik_rule }}
+
+{% if synapse_client_api_middlewares | length > 0 %}
+traefik.http.routers.matrix-synapse-public-client-synapse-client-api.middlewares={{ synapse_client_api_middlewares | join(',') }}
+{% endif %}
+
+{% if matrix_synapse_container_labels_public_client_synapse_client_api_traefik_priority | int > 0 %}
+traefik.http.routers.matrix-synapse-public-client-synapse-client-api.priority={{ matrix_synapse_container_labels_public_client_synapse_client_api_traefik_priority }}
+{% endif %}
+
+traefik.http.routers.matrix-synapse-public-client-synapse-client-api.service=matrix-synapse-client-api
+traefik.http.routers.matrix-synapse-public-client-synapse-client-api.entrypoints={{ matrix_synapse_container_labels_public_client_synapse_client_api_traefik_entrypoints }}
+traefik.http.routers.matrix-synapse-public-client-synapse-client-api.tls={{ matrix_synapse_container_labels_public_client_synapse_client_api_traefik_tls | to_json }}
+
+{% if matrix_synapse_container_labels_public_client_synapse_client_api_traefik_tls %}
+traefik.http.routers.matrix-synapse-public-client-synapse-client-api.tls.certResolver={{ matrix_synapse_container_labels_public_client_synapse_client_api_traefik_tls_certResolver }}
+{% endif %}
+
+############################################################
+#                                                          #
+# /Public Synapse Client API (/_synapse/client)            #
+#                                                          #
+############################################################
+{% endif %}
+
+
+{% if matrix_synapse_container_labels_public_client_synapse_admin_api_enabled %}
+############################################################
+#                                                          #
+# Public Synapse Admin API (/_synapse/admin)               #
+#                                                          #
+############################################################
+
+{% set synapse_admin_api_middlewares = [] %}
+
+{% if matrix_synapse_container_labels_traefik_compression_middleware_enabled %}
+{% set synapse_admin_api_middlewares = synapse_admin_api_middlewares + [matrix_synapse_container_labels_traefik_compression_middleware_name] %}
+{% endif %}
+
+traefik.http.routers.matrix-synapse-public-client-synapse-admin-api.rule={{ matrix_synapse_container_labels_public_client_synapse_admin_api_traefik_rule }}
+
+{% if synapse_admin_api_middlewares | length > 0 %}
+traefik.http.routers.matrix-synapse-public-client-synapse-admin-api.middlewares={{ synapse_admin_api_middlewares | join(',') }}
+{% endif %}
+
+{% if matrix_synapse_container_labels_public_client_synapse_admin_api_traefik_priority | int > 0 %}
+traefik.http.routers.matrix-synapse-public-client-synapse-admin-api.priority={{ matrix_synapse_container_labels_public_client_synapse_admin_api_traefik_priority }}
+{% endif %}
+
+traefik.http.routers.matrix-synapse-public-client-synapse-admin-api.service=matrix-synapse-client-api
+traefik.http.routers.matrix-synapse-public-client-synapse-admin-api.entrypoints={{ matrix_synapse_container_labels_public_client_synapse_admin_api_traefik_entrypoints }}
+traefik.http.routers.matrix-synapse-public-client-synapse-admin-api.tls={{ matrix_synapse_container_labels_public_client_synapse_admin_api_traefik_tls | to_json }}
+
+{% if matrix_synapse_container_labels_public_client_synapse_admin_api_traefik_tls %}
+traefik.http.routers.matrix-synapse-public-client-synapse-admin-api.tls.certResolver={{ matrix_synapse_container_labels_public_client_synapse_admin_api_traefik_tls_certResolver }}
+{% endif %}
+
+############################################################
+#                                                          #
+# /Public Synapse Admin API (/_synapse/admin)              #
+#                                                          #
+############################################################
+{% endif %}
+
+
+{% if matrix_synapse_container_labels_internal_client_synapse_admin_api_enabled %}
+############################################################
+#                                                          #
+# Internal Synapse Admin API (/_synapse/admin)             #
+#                                                          #
+############################################################
+traefik.http.routers.matrix-synapse-internal-client-synapse-admin-api.rule={{ matrix_synapse_container_labels_internal_client_synapse_admin_api_traefik_rule }}
+
+{% if matrix_synapse_container_labels_internal_client_synapse_admin_api_traefik_priority | int > 0 %}
+traefik.http.routers.matrix-synapse-internal-client-synapse-admin-api.priority={{ matrix_synapse_container_labels_internal_client_synapse_admin_api_traefik_priority }}
+{% endif %}
+
+
+traefik.http.routers.matrix-synapse-internal-client-synapse-admin-api.service=matrix-synapse-client-api
+traefik.http.routers.matrix-synapse-internal-client-synapse-admin-api.entrypoints={{ matrix_synapse_container_labels_internal_client_synapse_admin_api_traefik_entrypoints }}
+
+############################################################
+#                                                          #
+# /Internal Synapse Admin API (/_synapse/admin)            #
+#                                                          #
+############################################################
+{% endif %}
+
+
+{% if matrix_synapse_container_labels_public_federation_api_enabled %}
+############################################################
+#                                                          #
+# Public Federation-API (/_matrix)                         #
+#                                                          #
+############################################################
+
+{% set federation_api_middlewares = [] %}
+
+{% if matrix_synapse_container_labels_traefik_compression_middleware_enabled %}
+{% set federation_api_middlewares = federation_api_middlewares + [matrix_synapse_container_labels_traefik_compression_middleware_name] %}
+{% endif %}
+
+traefik.http.routers.matrix-synapse-public-federation-api.rule={{ matrix_synapse_container_labels_public_federation_api_traefik_rule }}
+
+{% if federation_api_middlewares | length > 0 %}
+traefik.http.routers.matrix-synapse-public-federation-api.middlewares={{ federation_api_middlewares | join(',') }}
+{% endif %}
+
+{% if matrix_synapse_container_labels_public_federation_api_traefik_priority | int > 0 %}
+traefik.http.routers.matrix-synapse-public-federation-api.priority={{ matrix_synapse_container_labels_public_federation_api_traefik_priority }}
+{% endif %}
+
+traefik.http.routers.matrix-synapse-public-federation-api.service=matrix-synapse-federation-api
+traefik.http.routers.matrix-synapse-public-federation-api.entrypoints={{ matrix_synapse_container_labels_public_federation_api_traefik_entrypoints }}
+traefik.http.routers.matrix-synapse-public-federation-api.tls={{ matrix_synapse_container_labels_public_federation_api_traefik_tls | to_json }}
+
+{% if matrix_synapse_container_labels_public_federation_api_traefik_tls %}
+traefik.http.routers.matrix-synapse-public-federation-api.tls.certResolver={{ matrix_synapse_container_labels_public_federation_api_traefik_tls_certResolver }}
+{% endif %}
+
+############################################################
+#                                                          #
+# /Public Federation-API (/_matrix)                        #
+#                                                          #
+############################################################
+{% endif %}
+
+############################################################
+#                                                          #
+# /MATRIX-RELATED (/_matrix, /_synapse/..)                 #
+#                                                          #
+############################################################
+{% endif %} {# end of matrix_synapse_container_labels_matrix_related_labels_enabled if-check #}
+
+
+{% if matrix_synapse_container_labels_public_metrics_enabled %}
+############################################################
+#                                                          #
+# Public Metrics (e.g. /metrics/synapse/main-process)      #
+#                                                          #
+############################################################
+
+{% set metrics_middlewares = [] %}
+
+{% if matrix_synapse_container_labels_traefik_compression_middleware_enabled %}
+{% set metrics_middlewares = metrics_middlewares + [matrix_synapse_container_labels_traefik_compression_middleware_name] %}
+{% endif %}
+
+{% if matrix_synapse_container_labels_public_metrics_middleware_basic_auth_enabled %}
+{% set metrics_middlewares = metrics_middlewares + ['matrix-synapse-metrics-basic-auth'] %}
+traefik.http.middlewares.matrix-synapse-metrics-basic-auth.basicauth.users={{ matrix_synapse_container_labels_public_metrics_middleware_basic_auth_users }}
+{% endif %}
+
+{% set metrics_middlewares = metrics_middlewares + ['matrix-synapse-metrics-replacepath'] %}
+traefik.http.middlewares.matrix-synapse-metrics-replacepath.replacepath.path=/_synapse/metrics
+
+traefik.http.routers.matrix-synapse-metrics.rule={{ matrix_synapse_container_labels_public_metrics_traefik_rule }}
+
+{% if metrics_middlewares | length > 0 %}
+traefik.http.routers.matrix-synapse-metrics.middlewares={{ metrics_middlewares | join(',') }}
+{% endif %}
+
+{% if matrix_synapse_container_labels_public_metrics_traefik_priority | int > 0 %}
+traefik.http.routers.matrix-synapse-metrics.priority={{ matrix_synapse_container_labels_public_metrics_traefik_priority }}
+{% endif %}
+
+traefik.http.routers.matrix-synapse-metrics.service=matrix-synapse-metrics
+traefik.http.routers.matrix-synapse-metrics.entrypoints={{ matrix_synapse_container_labels_public_metrics_traefik_entrypoints }}
+
+traefik.http.routers.matrix-synapse-metrics.tls={{ matrix_synapse_container_labels_public_metrics_traefik_tls | to_json }}
+{% if matrix_synapse_container_labels_public_metrics_traefik_tls %}
+traefik.http.routers.matrix-synapse-metrics.tls.certResolver={{ matrix_synapse_container_labels_public_metrics_traefik_tls_certResolver }}
+{% endif %}
+
+############################################################
+#                                                          #
+# /Public Metrics (e.g. /metrics/synapse/main-process)     #
+#                                                          #
+############################################################
+{% endif %}
+
+
+{% endif %}
+
+{{ matrix_synapse_container_labels_additional_labels }}

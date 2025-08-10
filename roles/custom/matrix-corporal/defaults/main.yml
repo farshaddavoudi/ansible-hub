@@ -1,0 +1,182 @@
+# SPDX-FileCopyrightText: 2019 - 2025 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2019 Sylvia van Os
+# SPDX-FileCopyrightText: 2021 Ahmad Haghighi
+# SPDX-FileCopyrightText: 2021 MDAD project contributors
+# SPDX-FileCopyrightText: 2021 boris runakov
+# SPDX-FileCopyrightText: 2022 Marko Weltzer
+# SPDX-FileCopyrightText: 2022 Nikita Chernyi
+# SPDX-FileCopyrightText: 2023 Samuel Meenzen
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+# matrix-corporal is a reconciliator and gateway for a managed Matrix server.
+# Project source code URL: https://github.com/devture/matrix-corporal
+
+matrix_corporal_enabled: true
+
+# renovate: datasource=docker depName=ghcr.io/devture/matrix-corporal
+matrix_corporal_version: 3.1.4
+
+matrix_corporal_container_image_self_build: false
+matrix_corporal_container_image_self_build_repo: "https://github.com/devture/matrix-corporal.git"
+
+# Controls whether the matrix-corporal container exposes its gateway HTTP port (tcp/41080 in the container).
+#
+# Takes an "<ip>:<port>" or "<port>" value (e.g. "127.0.0.1:41080"), or empty string to not expose.
+matrix_corporal_container_http_gateway_host_bind_port: ''
+
+# Controls whether the matrix-corporal container exposes its API HTTP port (tcp/41081 in the container).
+#
+# Takes an "<ip>:<port>" or "<port>" value (e.g. "127.0.0.1:41081"), or empty string to not expose.
+matrix_corporal_container_http_api_host_bind_port: ''
+
+# A list of extra arguments to pass to the container
+matrix_corporal_container_extra_arguments: []
+
+# The base container network. It will be auto-created by this role if it doesn't exist already.
+matrix_corporal_container_network: ""
+
+# A list of additional container networks that the container would be connected to.
+# The role does not create these networks, so make sure they already exist.
+# Use this to expose this container to another reverse proxy, which runs in a different container network.
+matrix_corporal_container_additional_networks: "{{ matrix_corporal_container_additional_networks_auto + matrix_corporal_container_additional_networks_custom }}"
+matrix_corporal_container_additional_networks_auto: []
+matrix_corporal_container_additional_networks_custom: []
+
+# matrix_corporal_container_labels_traefik_enabled controls whether labels to assist a Traefik reverse-proxy will be attached to the container.
+# See `../templates/labels.j2` for details.
+#
+# To inject your own other container labels, see `matrix_corporal_container_labels_additional_labels`.
+matrix_corporal_container_labels_traefik_enabled: true
+matrix_corporal_container_labels_traefik_docker_network: "{{ matrix_corporal_container_network }}"
+matrix_corporal_container_labels_traefik_entrypoints: web-secure
+matrix_corporal_container_labels_traefik_tls: "{{ matrix_corporal_container_labels_traefik_entrypoints != 'web' }}"
+matrix_corporal_container_labels_traefik_tls_certResolver: default  # noqa var-naming
+
+# Controls whether labels will be added that expose matrix-corporal's HTTP API (/_matrix/corporal).
+# Because we also capture all of `/_matrix` for the Client-Server API below (see `matrix_corporal_container_labels_matrix_client_api_*`)
+# and we explicitly set a higher priority on it (to ensure we capture it instead of the homeserver),
+# we also need to tweak the priority of this router, to avoid its requests going to the other one.
+matrix_corporal_container_labels_api_enabled: "{{ matrix_corporal_http_api_enabled }}"
+matrix_corporal_container_labels_api_traefik_rule: "Host(`{{ matrix_corporal_matrix_homeserver_api_domain_name }}`) && PathPrefix(`/_matrix/corporal`)"
+matrix_corporal_container_labels_api_traefik_priority: "{{ matrix_corporal_container_labels_matrix_client_api_traefik_priority + 500 }}"
+matrix_corporal_container_labels_api_traefik_entrypoints: "{{ matrix_corporal_container_labels_traefik_entrypoints }}"
+matrix_corporal_container_labels_api_traefik_tls: "{{ matrix_corporal_container_labels_traefik_tls }}"
+matrix_corporal_container_labels_api_traefik_tls_certResolver: "{{ matrix_corporal_container_labels_traefik_tls_certResolver }}"  # noqa var-naming
+
+# Controls whether labels will be added that expose the Matrix Client-Server API (/_matrix).
+# By default, we try to capture these requests with higher priority than the running homeserver,
+# so that matrix-corporal can do its job of firewalling, etc.
+matrix_corporal_container_labels_matrix_client_api_enabled: true
+matrix_corporal_container_labels_matrix_client_api_traefik_hostname: "{{ matrix_corporal_matrix_homeserver_api_domain_name }}"
+matrix_corporal_container_labels_matrix_client_api_traefik_path_prefix: /_matrix
+matrix_corporal_container_labels_matrix_client_api_traefik_rule: "Host(`{{ matrix_corporal_container_labels_matrix_client_api_traefik_hostname }}`) && PathPrefix(`{{ matrix_corporal_container_labels_matrix_client_api_traefik_path_prefix }}`)"
+matrix_corporal_container_labels_matrix_client_api_traefik_priority: 500
+matrix_corporal_container_labels_matrix_client_api_traefik_entrypoints: "{{ matrix_corporal_container_labels_traefik_entrypoints }}"
+matrix_corporal_container_labels_matrix_client_api_traefik_tls: "{{ matrix_corporal_container_labels_matrix_client_api_traefik_entrypoints != 'web' }}"
+matrix_corporal_container_labels_matrix_client_api_traefik_tls_certResolver: "{{ matrix_corporal_container_labels_traefik_tls_certResolver }}"  # noqa var-naming
+
+# matrix_corporal_container_labels_additional_labels contains a multiline string with additional labels to add to the container label file.
+# See `../templates/labels.j2` for details.
+#
+# Example:
+# matrix_corporal_container_labels_additional_labels: |
+#   my.label=1
+#   another.label="here"
+matrix_corporal_container_labels_additional_labels: ''
+
+# List of systemd services that matrix-corporal.service depends on
+matrix_corporal_systemd_required_services_list: "{{ matrix_corporal_systemd_required_services_list_default + matrix_corporal_systemd_required_services_list_auto + matrix_corporal_systemd_required_services_list_custom }}"
+matrix_corporal_systemd_required_services_list_default: "{{ [devture_systemd_docker_base_docker_service_name] if devture_systemd_docker_base_docker_service_name else [] }}"
+matrix_corporal_systemd_required_services_list_auto: []
+matrix_corporal_systemd_required_services_list_custom: []
+
+matrix_corporal_docker_image: "{{ matrix_corporal_docker_image_registry_prefix }}devture/matrix-corporal:{{ matrix_corporal_docker_image_tag }}"
+matrix_corporal_docker_image_registry_prefix: "{{ 'localhost/' if matrix_corporal_container_image_self_build else matrix_corporal_docker_image_registry_prefix_upstream }}"
+matrix_corporal_docker_image_registry_prefix_upstream: "{{ matrix_corporal_docker_image_registry_prefix_upstream_default }}"
+matrix_corporal_docker_image_registry_prefix_upstream_default: ghcr.io/
+matrix_corporal_docker_image_tag: "{{ matrix_corporal_version }}"  # for backward-compatibility
+matrix_corporal_docker_image_force_pull: "{{ matrix_corporal_docker_image.endswith(':latest') }}"
+
+matrix_corporal_base_path: "{{ matrix_base_data_path }}/corporal"
+matrix_corporal_container_src_files_path: "{{ matrix_corporal_base_path }}/container-src"
+matrix_corporal_config_dir_path: "{{ matrix_corporal_base_path }}/config"
+matrix_corporal_cache_dir_path: "{{ matrix_corporal_base_path }}/cache"
+matrix_corporal_var_dir_path: "{{ matrix_corporal_base_path }}/var"
+
+matrix_corporal_matrix_homeserver_scheme: https
+matrix_corporal_matrix_homeserver_domain_name: "{{ matrix_domain }}"
+matrix_corporal_matrix_homeserver_api_domain_name: "{{ matrix_server_fqn_matrix }}"
+
+# Controls where matrix-corporal can reach your Synapse server (e.g. "http://matrix-synapse-reverse-proxy-companion:{{ matrix_synapse_container_client_api_port }}").
+# If Synapse runs on the same machine, you may need to add its service to `matrix_corporal_systemd_required_services_list`.
+matrix_corporal_matrix_homeserver_api_endpoint: ""
+
+# The shared secret between matrix-corporal and Synapse's shared-secret-auth password provider module.
+# To use matrix-corporal, the shared-secret-auth password provider needs to be enabled and the secret needs to be identical.
+matrix_corporal_matrix_auth_shared_secret: ""
+
+# The shared secret for registering users with Synapse.
+# Needs to be identical to Synapse's `registration_shared_secret` setting.
+matrix_corporal_matrix_registration_shared_secret: ""
+
+matrix_corporal_matrix_timeout_milliseconds: 45000
+
+matrix_corporal_reconciliation_retry_interval_milliseconds: 30000
+matrix_corporal_corporal_user_id_local_part: "matrix-corporal"
+
+matrix_corporal_http_gateway_timeout_milliseconds: 60000
+
+# If enabled, matrix-corporal exposes a `POST /_matrix/corporal/_matrix-internal/identity/v1/check_credentials` API
+# on the gateway (Client-Server API) server.
+# This API can then be used together with the REST Auth password provider by pointing it to matrix-corporal (e.g. `http://matrix-corporal:41080/_matrix/corporal`).
+# Doing so allows Interactive Authentication to work.
+matrix_corporal_http_gateway_internal_rest_auth_enabled: false
+
+matrix_corporal_http_api_enabled: false
+matrix_corporal_http_api_auth_token: ""
+matrix_corporal_http_api_timeout_milliseconds: 15000
+
+# Matrix Corporal policy provider configuration (goes directly into the configuration's `PolicyProvider` value)
+matrix_corporal_policy_provider_config: ""
+
+matrix_corporal_debug: false
+
+
+# Default Corporal configuration template which covers the generic use case.
+# You can customize it by controlling the various variables inside it.
+#
+# For a more advanced customization, you can extend the default (see `matrix_corporal_configuration_extension_json`)
+# or completely replace this variable with your own template.
+#
+# The side-effect of this lookup is that Ansible would even parse the JSON for us, returning a dict.
+# This is unlike what it does when looking up YAML template files (no automatic parsing there).
+matrix_corporal_configuration_default: "{{ lookup('template', 'templates/config.json.j2', convert_data=False) | from_json }}"
+
+# Your custom JSON configuration for Corporal should go to `matrix_corporal_configuration_extension_json`.
+# This configuration extends the default starting configuration (`matrix_corporal_configuration_default`).
+#
+# You can override individual variables from the default configuration, or introduce new ones.
+#
+# If you need something more special, you can take full control by
+# completely redefining `matrix_corporal_configuration_default`.
+#
+# Example configuration extension follows:
+#
+# matrix_corporal_configuration_extension_json: |
+#  {
+#   "Matrix": {
+#     "TimeoutMilliseconds": 60000
+#   }
+#  }
+matrix_corporal_configuration_extension_json: '{}'
+
+matrix_corporal_configuration_extension: "{{ matrix_corporal_configuration_extension_json | from_json if matrix_corporal_configuration_extension_json | from_json is mapping else {} }}"
+
+# Holds the final Corporal configuration (a combination of the default and its extension).
+# You most likely don't need to touch this variable. Instead, see `matrix_corporal_configuration_default`.
+matrix_corporal_configuration: "{{ matrix_corporal_configuration_default | combine(matrix_corporal_configuration_extension, recursive=True) }}"
+
+matrix_corporal_self_check_matrix_client_api_url_endpoint_public: "{{ matrix_corporal_matrix_homeserver_scheme }}://{{ matrix_corporal_matrix_homeserver_api_domain_name }}/_matrix/client/corporal"
+matrix_corporal_self_check_corporal_api_url_endpoint_public: "{{ matrix_corporal_matrix_homeserver_scheme }}://{{ matrix_corporal_matrix_homeserver_api_domain_name }}/_matrix/corporal/policy"
