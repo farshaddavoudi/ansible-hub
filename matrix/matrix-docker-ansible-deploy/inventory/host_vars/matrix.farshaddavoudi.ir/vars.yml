@@ -1,40 +1,77 @@
 ---
-# Comments can be seen at "/examples/vars.yml"
+# ARCHITECTURE DECISION: Direct Public IP + Traefik (Recommended)
 
+# More comments about variables can be seen at "/examples/vars.yml"
+
+# =============================================================================
+# BASIC MATRIX CONFIGURATION
+# =============================================================================
 matrix_domain: farshaddavoudi.ir
 matrix_homeserver_implementation: synapse
 matrix_homeserver_generic_secret_key: 'a9Vx3TqL7zM2pYwRjKf8BdXeN6uGhQvWcEt1SbZoUlCmNrPiHsJkLgTfYdXqMwAzB'
+
+# =============================================================================
+# NETWORK & PROXY CONFIGURATION
+# =============================================================================
 matrix_playbook_reverse_proxy_type: playbook-managed-traefik
+matrix_playbook_ssl_enabled: true  # Set to false if external HAProxy handles TLS
 devture_systemd_docker_base_ipv6_enabled: true
-postgres_connection_password: 'Aa123456'
 traefik_container_network: 'proxy'
+traefik_container_image_tag: "v3.4"
+
+# =============================================================================
+# EXTERNAL IP CONFIGURATION
+# =============================================================================
+# This should be the public IP that clients can reach from anywhere
+# Change this if your server moves or if you're behind NAT
+matrix_server_external_ip: "37.32.12.132"
+
+# =============================================================================
+# DATABASE CONFIGURATION
+# =============================================================================
+postgres_connection_password: 'Aa123456'
+
+# =============================================================================
+# SERVICES CONFIGURATION
+# =============================================================================
 jitsi_enabled: true
 exim_relay_enabled: false
 matrix_homeserver_federation_enabled: false
 matrix_playbook_docker_installation_enabled: false
-matrix_playbook_ssl_enabled: true  # false if HAProxy handles TLS
-traefik_container_image_tag: "v3.4"
+
+# =============================================================================
+# RTC & CALLING CONFIGURATION
+# =============================================================================
 matrix_rtc_enabled: true
 matrix_element_call_enabled: true
-matrix_coturn_turn_external_ip_address: "37.32.12.132"
-matrix_coturn_container_network: host # Enable host networking for coturn to bypass Docker port publishing limitations
-# Increase UDP port range for TURN relay
+
+# =============================================================================
+# COTURN (TURN/STUN) CONFIGURATION
+# =============================================================================
+# Use host networking for optimal performance and port management
+matrix_coturn_container_network: host
+
+# External IP for TURN server (clients need to reach this)
+matrix_coturn_turn_external_ip_address: "{{ matrix_server_external_ip }}"
+
+# UDP port range for media relay (adjust based on expected concurrent calls)
+# Rule of thumb: ~10 ports per concurrent call, minimum 100 ports
 matrix_coturn_turn_udp_min_port: 49152
-matrix_coturn_turn_udp_max_port: 49252
+matrix_coturn_turn_udp_max_port: 49352  # 200 ports for ~20 concurrent calls
+
+# Configure Synapse to use IP addresses instead of domain names
+# This ensures TURN works even if DNS resolution fails
 matrix_synapse_turn_uris:
-  - turns:37.32.12.132?transport=udp
-  - turns:37.32.12.132?transport=tcp
-  - turn:37.32.12.132?transport=udp
-  - turn:37.32.12.132?transport=tcp
+  - turns:{{ matrix_server_external_ip }}?transport=udp
+  - turns:{{ matrix_server_external_ip }}?transport=tcp
+  - turn:{{ matrix_server_external_ip }}?transport=udp
+  - turn:{{ matrix_server_external_ip }}?transport=tcp
+
+# Minimal coturn configuration for production
 matrix_coturn_additional_configuration: |
-  verbose
-  simple-log
-  log-binding
-  log-binding-errors
-  fingerprint
-  listening-ip=37.32.12.132
+  # Bind to all interfaces to handle various network configurations
   listening-ip=0.0.0.0
-  stale-nonce=600
+  # Reasonable session timeouts
   max-allocate-lifetime=3600
-  channel-lifetime=600
-  permission-lifetime=300
+  # Reduce verbosity in production (remove 'verbose' and detailed logging)
+  simple-log
