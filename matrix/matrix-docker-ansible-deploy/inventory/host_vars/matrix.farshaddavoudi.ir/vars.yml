@@ -26,6 +26,10 @@ matrix_synapse_turn_uris:
 matrix_coturn_additional_configuration: |
   verbose
   simple-log
-  listening-ip=37.32.12.132
-  listening-ip=0.0.0.0
-  external-ip=37.32.12.132
+  log-binding
+  log-binding-errors
+  fingerprint
+  stale-nonce=600
+  max-allocate-lifetime=3600
+  channel-lifetime=600
+  permission-lifetime=300
