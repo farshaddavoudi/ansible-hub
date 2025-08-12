@@ -16,7 +16,7 @@ matrix_playbook_ssl_enabled: true  # false if HAProxy handles TLS
 traefik_container_image_tag: "v3.4"
 matrix_rtc_enabled: true
 matrix_element_call_enabled: true
-matrix_coturn_turn_external_ip_address: '37.23.12.132'
+matrix_coturn_turn_external_ip_address: "37.32.12.132"
 matrix_coturn_container_network: host # Enable host networking for coturn to bypass Docker port publishing limitations
 # Enable verbose logging to see connection attempts
 matrix_coturn_additional_configuration: |
