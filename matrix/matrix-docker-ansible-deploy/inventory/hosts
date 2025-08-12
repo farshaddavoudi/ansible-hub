@@ -1,2 +1,2 @@
 [matrix_servers]
-matrix.farshaddavoudi.ir ansible_host=<your-server's external IP address> ansible_ssh_user=ansible
+matrix.farshaddavoudi.ir ansible_host=arvan-vm1

@@ -7,7 +7,7 @@ matrix_homeserver_generic_secret_key: 'a9Vx3TqL7zM2pYwRjKf8BdXeN6uGhQvWcEt1SbZoU
 matrix_playbook_reverse_proxy_type: playbook-managed-traefik
 devture_systemd_docker_base_ipv6_enabled: true
 postgres_connection_password: 'Aa123456'
-matrix_coturn_turn_external_ip_address: ''
+matrix_coturn_turn_external_ip_address: '37.23.12.132'
 traefik_container_network: 'proxy'
 jitsi_enabled: true
 exim_relay_enabled: false
@@ -15,3 +15,5 @@ matrix_homeserver_federation_enabled: false
 matrix_playbook_docker_installation_enabled: false
 matrix_playbook_ssl_enabled: true  # false if HAProxy handles TLS
 traefik_container_image_tag: "v3.4"
+matrix_rtc_enabled: true
+matrix_element_call_enabled: true
