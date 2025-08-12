@@ -18,6 +18,9 @@ matrix_rtc_enabled: true
 matrix_element_call_enabled: true
 matrix_coturn_turn_external_ip_address: "37.32.12.132"
 matrix_coturn_container_network: host # Enable host networking for coturn to bypass Docker port publishing limitations
+# Increase UDP port range for TURN relay
+matrix_coturn_turn_udp_min_port: 49152
+matrix_coturn_turn_udp_max_port: 49252
 matrix_synapse_turn_uris:
   - turns:37.32.12.132?transport=udp
   - turns:37.32.12.132?transport=tcp
@@ -29,6 +32,8 @@ matrix_coturn_additional_configuration: |
   log-binding
   log-binding-errors
   fingerprint
+  listening-ip=37.32.12.132
+  listening-ip=0.0.0.0
   stale-nonce=600
   max-allocate-lifetime=3600
   channel-lifetime=600
