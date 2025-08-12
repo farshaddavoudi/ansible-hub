@@ -18,7 +18,9 @@ matrix_rtc_enabled: true
 matrix_element_call_enabled: true
 matrix_coturn_turn_external_ip_address: "37.32.12.132"
 matrix_coturn_container_network: host # Enable host networking for coturn to bypass Docker port publishing limitations
-# Enable verbose logging to see connection attempts
 matrix_coturn_additional_configuration: |
   verbose
   simple-log
+  listening-ip=37.32.12.132
+  listening-ip=0.0.0.0
+  external-ip=37.32.12.132
