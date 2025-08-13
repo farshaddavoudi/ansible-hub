@@ -27,9 +27,18 @@ This setup uses the [matrix-docker-ansible-deploy](https://github.com/spantaleev
 3. Optional: [Update Ansible roles](https://github.com/spantaleev/matrix-docker-ansible-deploy/blob/master/docs/quick-start.md#update-ansible-roles)
 3. Run the Ansible playbook to deploy the Matrix server:
 > From `matrix-docker-ansible-deploy` root:
+
+_First-time Install_:
 ```
 ansible-playbook -i inventory/hosts setup.yml --tags=install-all,ensure-matrix-users-created,start
 ```
+
+_Re-turn_:
+```
+ansible-playbook -i inventory/hosts setup.yml --tags=setup-all,ensure-matrix-users-created,start
+```
+
+
 4. [Create user](https://github.com/spantaleev/matrix-docker-ansible-deploy/blob/master/docs/quick-start.md#create-your-user-account)
 
 ## Updating
