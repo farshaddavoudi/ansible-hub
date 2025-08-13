@@ -36,14 +36,14 @@ postgres_connection_password: 'Aa123456'
 # =============================================================================
 jitsi_enabled: true
 exim_relay_enabled: false
-matrix_homeserver_federation_enabled: false
+matrix_homeserver_federation_enabled: true
 matrix_playbook_docker_installation_enabled: false
 
 # =============================================================================
 # RTC & CALLING CONFIGURATION
 # =============================================================================
 matrix_rtc_enabled: true
-matrix_element_call_enabled: true
+matrix_element_call_enabled: false
 
 # =============================================================================
 # COTURN (TURN/STUN) CONFIGURATION
