@@ -35,8 +35,6 @@ postgres_connection_password: 'Aa123456'
 # SERVICES CONFIGURATION
 # =============================================================================
 jitsi_enabled: true
-matrix_client_element_jitsi_preferred_domain: "jitsi.farshaddavoudi.ir"
-matrix_static_files_file_matrix_client_property_io_element_jitsi_preferred_domain: "jitsi.farshaddavoudi.ir"
 
 # Enable base domain serving for .well-known files
 matrix_static_files_container_labels_base_domain_enabled: true
