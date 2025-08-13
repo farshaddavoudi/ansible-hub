@@ -35,11 +35,12 @@ ansible-playbook -i inventory/hosts setup.yml --tags=install-all,ensure-matrix-u
 
 _Re-turn_:
 ```
+just setup-all
+// or
 ansible-playbook -i inventory/hosts setup.yml --tags=setup-all,ensure-matrix-users-created,start
 ```
-
-
 4. [Create user](https://github.com/spantaleev/matrix-docker-ansible-deploy/blob/master/docs/quick-start.md#create-your-user-account)
+5. Open all necessary ports.
 
 ## Updating
 

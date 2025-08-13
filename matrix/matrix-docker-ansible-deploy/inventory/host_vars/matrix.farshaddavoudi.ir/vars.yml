@@ -35,6 +35,8 @@ postgres_connection_password: 'Aa123456'
 # SERVICES CONFIGURATION
 # =============================================================================
 jitsi_enabled: true
+matrix_client_element_jitsi_preferred_domain: "jitsi.farshaddavoudi.ir"
+matrix_static_files_file_matrix_client_property_io_element_jitsi_preferred_domain: "jitsi.farshaddavoudi.ir"
 exim_relay_enabled: false
 matrix_homeserver_federation_enabled: true
 matrix_playbook_docker_installation_enabled: false
