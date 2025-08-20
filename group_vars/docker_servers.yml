@@ -19,10 +19,10 @@ docker_edition: 'ce'
 docker_service_manage: true
 docker_service_state: started
 docker_service_enabled: true
-docker_add_repo: false  # Disable Docker's official repository
+docker_add_repo: true  # Enable Docker's official repository
 docker_packages_state: present
-docker_install_compose_plugin: false  # Don't install compose plugin since we're using Ubuntu packages
-docker_install_compose: false  # Install traditional docker-compose
+docker_install_compose_plugin: true
+docker_install_compose: true  # Install traditional docker-compose
 
 # Install Docker from Ubuntu's repository
 docker_packages:
@@ -39,9 +39,10 @@ docker_daemon_options:
   insecure-registries:
     - "docker.arvancloud.ir"
 
-# Clean up obsolete packages (excluding docker.io since we're installing it)
+# Clean up obsolete packages
 docker_obsolete_packages:
   - docker
+  - docker.io
   - docker-engine
   - docker-doc
   - docker-compose-v2
