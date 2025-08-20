@@ -40,6 +40,19 @@
         chdir: "{{ sentry_dir }}"
       when: sentry_repo.after != sentry_repo.before
 
+    - name: Create required Docker volumes for Sentry
+      docker_volume:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - sentry-data
+        - sentry-postgres
+        - sentry-redis
+        - sentry-zookeeper
+        - sentry-kafka
+        - sentry-clickhouse
+        - sentry-symbolicator
+
     - name: Ensure Sentry is running before configuration
       docker_compose:
         project_src: "{{ sentry_dir }}"
