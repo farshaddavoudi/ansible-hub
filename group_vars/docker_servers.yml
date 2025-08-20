@@ -8,7 +8,6 @@ portainer:
   # Traefik integration settings
   traefik_labels:
     enable: false
-    # Skip below if traefik.enable is false
     traefik.http.routers.portainer.rule: "Host(`portainer.farshaddavoudi.ir`)"
     traefik.http.routers.portainer.entrypoints: "https"
     traefik.http.routers.portainer.tls: true
@@ -40,13 +39,11 @@ docker_daemon_options:
   insecure-registries:
     - "docker.arvancloud.ir"
 
-# Clean up obsolete packages
+# Clean up obsolete packages (excluding docker.io since we're installing it)
 docker_obsolete_packages:
   - docker
-  #- docker.io
   - docker-engine
   - docker-doc
-  - docker-compose
   - docker-compose-v2
   - podman-docker
   - containerd

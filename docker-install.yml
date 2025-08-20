@@ -30,65 +30,25 @@
       failed_when: false
       when: apt_processes.stdout_lines | length > 0
 
-    - name: Clean apt cache and lists
-      shell: |
-        apt-get clean
-        rm -rf /var/lib/apt/lists/*
-        mkdir -p /var/lib/apt/lists/partial
-      changed_when: false
-      failed_when: false
-
-    - name: Update apt cache manually
-      shell: apt-get update
-      register: apt_update_result
-      failed_when: false
-      changed_when: false
-
-    - name: Debug apt update issues
-      debug:
-        msg: "Apt update result: {{ apt_update_result }}"
-      when: apt_update_result.rc != 0
-
     - name: Ensure python3-pip is installed
       apt:
         name: python3-pip
         state: present
-        update_cache: false  # Don't update cache here since we did it manually above
-      register: apt_result
-      until: apt_result is succeeded
-      retries: 3
-      delay: 5
+        update_cache: true
 
-    - name: Install Docker SDK for Python via apt (primary method)
+    - name: Install Docker SDK for Python via apt
       apt:
         name: python3-docker
         state: present
       register: apt_docker_result
       failed_when: false
 
-    - name: Install Docker SDK via pip using Tsinghua mirror (if apt failed)
+    - name: Install Docker SDK via pip using accessible mirror (fallback)
       pip:
         name: docker
         state: present
         extra_args: --break-system-packages --index-url https://pypi.tuna.tsinghua.edu.cn/simple/ --trusted-host pypi.tuna.tsinghua.edu.cn
-      register: pip_tsinghua_result
       when: apt_docker_result.failed | default(false)
-
-    - name: Try Douban mirror as last resort
-      pip:
-        name: docker
-        state: present
-        extra_args: --break-system-packages --index-url https://pypi.douban.com/simple/ --trusted-host pypi.douban.com
-      register: pip_douban_result
-      failed_when: false
-      when: 
-        - apt_docker_result.failed | default(false)
-        - pip_tsinghua_result.failed | default(true)
-
-    - name: Verify Docker SDK installation
-      command: python3 -c "import docker; print('Docker SDK installed successfully')"
-      register: docker_sdk_check
-      changed_when: false
 
   roles:
     - role: geerlingguy.docker
@@ -99,36 +59,15 @@
         name: docker-compose
         state: present
 
-    - name: Stop Docker service before fixing configuration
-      systemd:
-        name: docker
-        state: stopped
-      failed_when: false
-
-    - name: Check if daemon.json exists and backup if problematic
-      stat:
-        path: /etc/docker/daemon.json
-      register: daemon_json_stat
-
-    - name: Read current daemon.json content
-      slurp:
-        src: /etc/docker/daemon.json
-      register: daemon_json_content
-      when: daemon_json_stat.stat.exists
-
-    - name: Backup problematic daemon.json
-      copy:
-        src: /etc/docker/daemon.json
-        dest: /etc/docker/daemon.json.backup
-        remote_src: true
-      when: daemon_json_stat.stat.exists and '"dns"' in (daemon_json_content.content | b64decode)
-
-    - name: Create simplified daemon.json
+    - name: Ensure Docker daemon configuration is valid
       copy:
         content: |
           {
             "registry-mirrors": [
-              "https://docker.arvancloud.ir"
+              "https://docker.arvancloud.ir",
+              "https://docker.mirrors.sjtug.sjtu.edu.cn",
+              "https://registry-1.docker.io",
+              "https://mirror.baidubce.com"
             ],
             "insecure-registries": [
               "docker.arvancloud.ir"
@@ -136,23 +75,9 @@
           }
         dest: /etc/docker/daemon.json
         mode: '0644'
-      when: daemon_json_stat.stat.exists and '"dns"' in (daemon_json_content.content | b64decode)
-
-    - name: Reload systemd daemon
-      systemd:
-        daemon_reload: true
-
-    - name: Start Docker service
-      systemd:
-        name: docker
-        state: started
-        enabled: true
-      register: docker_start_result
-
-    - name: Debug Docker service status if start failed
-      command: systemctl status docker.service -l
-      when: docker_start_result.failed | default(false)
-      failed_when: false
+        backup: true
+      notify: restart docker
+      when: docker_daemon_options is defined
 
     - name: Create Portainer data directory
       file:
