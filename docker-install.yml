@@ -110,6 +110,22 @@
       failed_when: false
       changed_when: false
 
+    - name: Test daemon.json syntax before applying
+      shell: |
+        echo '{
+          "registry-mirrors": [
+            "https://docker.arvancloud.ir",
+            "https://docker.mirrors.sjtug.sjtu.edu.cn",
+            "https://registry-1.docker.io",
+            "https://mirror.baidubce.com"
+          ],
+          "insecure-registries": [
+            "docker.arvancloud.ir"
+          ]
+        }' | python3 -m json.tool > /dev/null
+      register: json_test
+      failed_when: false
+
     - name: Ensure Docker daemon configuration is clean and valid
       copy:
         content: |
@@ -126,13 +142,59 @@
           }
         dest: /etc/docker/daemon.json
         mode: '0644'
+      when: json_test.rc == 0
 
-    - name: Reload systemd and start Docker service
+    - name: Use minimal daemon.json if validation failed
+      copy:
+        content: |
+          {
+            "registry-mirrors": []
+          }
+        dest: /etc/docker/daemon.json
+        mode: '0644'
+      when: json_test.rc != 0
+
+    - name: Reload systemd daemon
+      systemd:
+        daemon_reload: true
+
+    - name: Start Docker service and check status
       systemd:
         name: docker
         state: started
         enabled: true
-        daemon_reload: true
+      register: docker_start
+      failed_when: false
+
+    - name: Check Docker service status if start failed
+      shell: |
+        echo "=== Docker service status ==="
+        systemctl status docker.service --no-pager -l
+        echo "=== Docker journal logs ==="
+        journalctl -xeu docker.service --no-pager -l --since "5 minutes ago"
+      register: docker_debug
+      when: docker_start.failed
+
+    - name: Show Docker debug information
+      debug:
+        msg: "{{ docker_debug.stdout_lines }}"
+      when: docker_start.failed
+
+    - name: Try starting Docker with minimal config if it failed
+      block:
+        - name: Create minimal daemon.json
+          copy:
+            content: "{}"
+            dest: /etc/docker/daemon.json
+            mode: '0644'
+
+        - name: Reload systemd and restart Docker
+          systemd:
+            name: docker
+            state: restarted
+            enabled: true
+            daemon_reload: true
+      when: docker_start.failed
 
     - name: Create Portainer data directory
       file:
