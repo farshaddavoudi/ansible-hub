@@ -7,7 +7,7 @@ portainer:
   config_dir: "{{ docker_root_path }}/portainer"
   # Traefik integration settings
   traefik_labels:
-    traefik.enable: false
+    enable: false
     # Skip below if traefik.enable is false
     traefik.http.routers.portainer.rule: "Host(`portainer.farshaddavoudi.ir`)"
     traefik.http.routers.portainer.entrypoints: "https"
