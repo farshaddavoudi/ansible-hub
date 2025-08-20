@@ -1,0 +1,17 @@
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    {{ ansible_default_ipv4.interface | default('eth0') }}:
+      dhcp4: true
+      dhcp6: false
+      nameservers:
+        addresses:
+{% for dns_server in shecan_dns_servers %}
+          - {{ dns_server }}
+{% endfor %}
+{% for dns_server in fallback_dns_servers %}
+          - {{ dns_server }}
+{% endfor %}
+        search:
+          - localdomain
