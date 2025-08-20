@@ -51,106 +51,11 @@
         chdir: "{{ sentry_dir }}"
       when: sentry_repo.after != sentry_repo.before
 
-    - name: Remove problematic SMTP service completely using sed
-      shell: |
-        # Remove SMTP service block from docker-compose.yml
-        sed -i '/^  smtp:/,/^  [a-zA-Z]/{ /^  [a-zA-Z]/!d; /^  smtp:/d; }' docker-compose.yml
-        # Also remove any standalone smtp: lines
-        sed -i '/^  smtp:$/d' docker-compose.yml
-        # Remove SMTP dependencies from other services
-        sed -i '/^[[:space:]]*- smtp$/d' docker-compose.yml
-        sed -i '/^[[:space:]]*smtp$/d' docker-compose.yml
-        # Remove SMTP from depends_on lists
-        sed -i 's/,\s*smtp//g' docker-compose.yml
-        sed -i 's/smtp\s*,//g' docker-compose.yml
-      args:
-        chdir: "{{ sentry_dir }}"
-      ignore_errors: true
-
-    - name: Remove SMTP dependencies from web service specifically
+    - name: Replace problematic SMTP image with working alternative
       replace:
         path: "{{ sentry_dir }}/docker-compose.yml"
-        regexp: '(\s+depends_on:\s*\n(?:\s+- [^\n]+\n)*)\s+- smtp\s*\n'
-        replace: '\1'
-      ignore_errors: true
-
-    - name: Remove SMTP dependencies from web service (alternative format)
-      replace:
-        path: "{{ sentry_dir }}/docker-compose.yml"
-        regexp: '(\s+depends_on:\s*\[.*?),\s*smtp(.*?\])'
-        replace: '\1\2'
-      ignore_errors: true
-
-    - name: Final cleanup - remove any remaining smtp references
-      shell: |
-        # Remove any lines containing just 'smtp' in dependency contexts
-        sed -i '/depends_on:/,/^[[:space:]]*[a-zA-Z_-]*:/ { /^[[:space:]]*smtp[[:space:]]*$/d; }' docker-compose.yml
-        # Remove trailing commas that might be left behind
-        sed -i 's/,[[:space:]]*]/]/g' docker-compose.yml
-        sed -i 's/,[[:space:]]*$//' docker-compose.yml
-      args:
-        chdir: "{{ sentry_dir }}"
-      ignore_errors: true
-
-    - name: Fix YAML syntax issues in docker-compose file
-      shell: |
-        # Fix empty arrays/lists that might have been created
-        sed -i 's/\[\s*,/[/g' docker-compose.yml
-        sed -i 's/,\s*\]/]/g' docker-compose.yml
-        sed -i 's/\[\s*\]/[]/g' docker-compose.yml
-        # Fix empty depends_on sections
-        sed -i '/depends_on:\s*\[\s*\]/d' docker-compose.yml
-        sed -i '/depends_on:\s*$/N; /depends_on:\s*\n\s*$/d' docker-compose.yml
-        # Remove any malformed array syntax
-        sed -i '/depends_on:/,/^[[:space:]]*[a-zA-Z_-]*:/ { s/\[\s*\([^]]*\)\s*\]/[\1]/g; }' docker-compose.yml
-      args:
-        chdir: "{{ sentry_dir }}"
-      ignore_errors: true
-
-    - name: Clean up docker-compose.yml using Python to fix YAML syntax
-      shell: |
-        python3 -c "
-        import yaml
-        import sys
-        
-        try:
-            # Read the file
-            with open('docker-compose.yml', 'r') as f:
-                content = f.read()
-            
-            # Try to parse and fix common issues
-            lines = content.split('\n')
-            fixed_lines = []
-            
-            for line in lines:
-                # Fix malformed depends_on arrays
-                if 'depends_on:' in line and '[' in line and ']' in line:
-                    # Extract the array content and clean it
-                    import re
-                    match = re.search(r'depends_on:\s*\[(.*?)\]', line)
-                    if match:
-                        deps = [dep.strip().strip('\"\'') for dep in match.group(1).split(',') if dep.strip() and dep.strip() != 'smtp']
-                        if deps:
-                            line = re.sub(r'depends_on:\s*\[.*?\]', f'depends_on: [{\", \".join(deps)}]', line)
-                        else:
-                            continue  # Skip empty depends_on
-                
-                # Skip lines that only contain 'smtp' in arrays
-                if line.strip() == 'smtp' or line.strip() == '- smtp':
-                    continue
-                    
-                fixed_lines.append(line)
-            
-            # Write back the fixed content
-            with open('docker-compose.yml', 'w') as f:
-                f.write('\n'.join(fixed_lines))
-                
-        except Exception as e:
-            print(f'Error: {e}', file=sys.stderr)
-            sys.exit(0)  # Don't fail the playbook
-        "
-      args:
-        chdir: "{{ sentry_dir }}"
+        regexp: 'registry\.gitlab\.com/egos-tech/smtp.*'
+        replace: 'namshi/smtp:latest'
       ignore_errors: true
 
     - name: Validate docker-compose file before proceeding
