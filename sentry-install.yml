@@ -45,17 +45,14 @@
         - { key: "SENTRY_MATRIX_HOOKSHOT_URL", value: "{{ matrix_hookshot_url | default('') }}" }
         - { key: "SENTRY_MATRIX_ROOM_ID", value: "{{ matrix_room_id | default('') }}" }
 
-    - name: Run Sentry install script if repository changed
-      command: ./install.sh --no-user-prompt
+    - name: Run Sentry install script
+      shell: |
+        echo "y" | timeout 300 ./install.sh --no-user-prompt
       args:
         chdir: "{{ sentry_dir }}"
-      when: sentry_repo.after != sentry_repo.before
-
-    - name: Ensure install script has run (run again if not changed)
-      command: ./install.sh --no-user-prompt
-      args:
-        chdir: "{{ sentry_dir }}"
-      when: sentry_repo.after == sentry_repo.before
+      async: 300
+      poll: 10
+      ignore_errors: true
 
     - name: Replace problematic SMTP image with working alternative
       replace:
