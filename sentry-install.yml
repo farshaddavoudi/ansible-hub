@@ -45,9 +45,25 @@
         - { key: "SENTRY_MATRIX_HOOKSHOT_URL", value: "{{ matrix_hookshot_url | default('') }}" }
         - { key: "SENTRY_MATRIX_ROOM_ID", value: "{{ matrix_room_id | default('') }}" }
 
+    - name: Check docker-compose version
+      shell: docker-compose --version
+      register: compose_version
+      ignore_errors: true
+
+    - name: Update docker-compose to latest version
+      shell: |
+        # Download latest docker-compose
+        curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+        chmod +x /usr/local/bin/docker-compose
+        # Create symlink if needed
+        ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
+      when: compose_version.stdout is defined and not ('2.' in compose_version.stdout and compose_version.stdout | regex_search('2\.([3-9][0-9]|[4-9][0-9])'))
+      ignore_errors: true
+
     - name: Run Sentry install script
       shell: |
-        echo "y" | timeout 300 ./install.sh --no-user-prompt
+        export REPORT_SELF_HOSTED_ISSUES=0
+        echo "n" | timeout 300 ./install.sh --skip-user-creation --no-report-self-hosted-issues
       args:
         chdir: "{{ sentry_dir }}"
       async: 300
