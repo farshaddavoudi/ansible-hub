@@ -72,6 +72,25 @@
         replace: 'getsentry/\1:\2'
       ignore_errors: true
 
+    - name: Force replace all ghcr.io references with docker.io
+      shell: |
+        sed -i 's|ghcr\.io/getsentry/|getsentry/|g' docker-compose.yml
+        sed -i 's|ghcr\.io/|docker.io/|g' docker-compose.yml
+      args:
+        chdir: "{{ sentry_dir }}"
+      ignore_errors: true
+
+    - name: Show docker-compose changes for debugging
+      shell: grep -n "getsentry\|ghcr\.io" docker-compose.yml || echo "No getsentry or ghcr.io references found"
+      args:
+        chdir: "{{ sentry_dir }}"
+      register: image_refs
+      ignore_errors: true
+
+    - name: Display image references found
+      debug:
+        msg: "Image references: {{ image_refs.stdout_lines }}"
+
     - name: Validate docker-compose file before proceeding
       shell: docker-compose config
       args:
