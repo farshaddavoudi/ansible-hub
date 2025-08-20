@@ -7,20 +7,41 @@
     msg: "This role only works on Debian/Ubuntu systems"
   when: ansible_os_family != "Debian"
 
+- name: Check if apt is available
+  command: which apt-get
+  register: apt_check
+  changed_when: false
+  failed_when: false
+
+- name: Skip if apt is not available
+  meta: end_play
+  when: apt_check.rc != 0
+
 - name: Fix apt package manager issues
   block:
     - name: Wait for automatic system updates to complete
-      shell: while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do sleep 1; done
+      shell: |
+        timeout=0
+        while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+          if [ $timeout -ge 300 ]; then
+            echo "Timeout waiting for dpkg lock"
+            break
+          fi
+          sleep 5
+          timeout=$((timeout + 5))
+        done
       changed_when: false
-      timeout: 300  # 5 minute timeout
+      failed_when: false
 
     - name: Kill any hanging apt processes
       shell: |
-        sudo pkill -f apt || true
-        sudo pkill -f dpkg || true
-        sudo pkill -f unattended-upgrade || true
+        pkill -f apt 2>/dev/null || true
+        pkill -f dpkg 2>/dev/null || true  
+        pkill -f unattended-upgrade 2>/dev/null || true
+        sleep 2
       changed_when: false
       ignore_errors: true
+      failed_when: false
 
     - name: Remove apt locks if they exist
       file:
@@ -32,6 +53,7 @@
         - /var/cache/apt/archives/lock
         - /var/lib/apt/lists/lock
       ignore_errors: true
+      failed_when: false
 
     - name: Configure dpkg to avoid interactive prompts
       copy:
@@ -47,10 +69,11 @@
 
     - name: Clean apt cache and lists
       shell: |
-        apt-get clean
-        apt-get autoclean
-        rm -rf /var/lib/apt/lists/*
+        apt-get clean 2>/dev/null || true
+        apt-get autoclean 2>/dev/null || true
+        rm -rf /var/lib/apt/lists/* 2>/dev/null || true
       changed_when: false
+      failed_when: false
 
     - name: Update apt cache with retries
       apt:
