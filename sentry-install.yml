@@ -57,6 +57,37 @@
         sed -i '/^  smtp:/,/^  [a-zA-Z]/{ /^  [a-zA-Z]/!d; /^  smtp:/d; }' docker-compose.yml
         # Also remove any standalone smtp: lines
         sed -i '/^  smtp:$/d' docker-compose.yml
+        # Remove SMTP dependencies from other services
+        sed -i '/^[[:space:]]*- smtp$/d' docker-compose.yml
+        sed -i '/^[[:space:]]*smtp$/d' docker-compose.yml
+        # Remove SMTP from depends_on lists
+        sed -i 's/,\s*smtp//g' docker-compose.yml
+        sed -i 's/smtp\s*,//g' docker-compose.yml
+      args:
+        chdir: "{{ sentry_dir }}"
+      ignore_errors: true
+
+    - name: Remove SMTP dependencies from web service specifically
+      replace:
+        path: "{{ sentry_dir }}/docker-compose.yml"
+        regexp: '(\s+depends_on:\s*\n(?:\s+- [^\n]+\n)*)\s+- smtp\s*\n'
+        replace: '\1'
+      ignore_errors: true
+
+    - name: Remove SMTP dependencies from web service (alternative format)
+      replace:
+        path: "{{ sentry_dir }}/docker-compose.yml"
+        regexp: '(\s+depends_on:\s*\[.*?),\s*smtp(.*?\])'
+        replace: '\1\2'
+      ignore_errors: true
+
+    - name: Final cleanup - remove any remaining smtp references
+      shell: |
+        # Remove any lines containing just 'smtp' in dependency contexts
+        sed -i '/depends_on:/,/^[[:space:]]*[a-zA-Z_-]*:/ { /^[[:space:]]*smtp[[:space:]]*$/d; }' docker-compose.yml
+        # Remove trailing commas that might be left behind
+        sed -i 's/,[[:space:]]*]/]/g' docker-compose.yml
+        sed -i 's/,[[:space:]]*$//' docker-compose.yml
       args:
         chdir: "{{ sentry_dir }}"
       ignore_errors: true
