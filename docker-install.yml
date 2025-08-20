@@ -111,7 +111,7 @@
     - name: Verify docker-compose installation
       shell: |
         # Try multiple possible locations
-        for cmd in docker-compose /usr/local/bin/docker-compose /usr/bin/docker-compose "docker compose"; do
+        for cmd in docker-compose /usr/local/bin/docker-compose /usr/bin/docker-compose; do
           if $cmd --version 2>/dev/null; then
             echo "Found working docker-compose: $cmd"
             # Create symlinks to ensure it's accessible
@@ -122,6 +122,16 @@
             break
           fi
         done
+        # Also try docker compose (new syntax)
+        if ! docker-compose --version 2>/dev/null; then
+          if docker compose version 2>/dev/null; then
+            echo "Found docker compose plugin, creating wrapper script"
+            echo '#!/bin/bash' > /usr/local/bin/docker-compose
+            echo 'exec docker compose "$@"' >> /usr/local/bin/docker-compose
+            chmod +x /usr/local/bin/docker-compose
+            ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
+          fi
+        fi
       register: compose_version
       failed_when: false
 
