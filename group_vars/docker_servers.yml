@@ -7,7 +7,7 @@ portainer:
   config_dir: "{{ docker_root_path }}/portainer"
   # Traefik integration settings
   traefik_labels:
-    traefik.enable: "true"
+    traefik.enable: false
     # Skip below if traefik.enable is false
     traefik.http.routers.portainer.rule: "Host(`portainer.farshaddavoudi.ir`)"
     traefik.http.routers.portainer.entrypoints: "https"
@@ -35,9 +35,9 @@ docker_daemon_options:
   insecure-registries:
     - "docker.arvancloud.ir"
   registry-mirrors:
-    - "https://registry-1.docker.io"
     - "https://docker.arvancloud.ir"
     - "https://docker.mirrors.sjtug.sjtu.edu.cn"
+    - "https://registry-1.docker.io"
     - "https://mirror.baidubce.com"
   dns:
     - "8.8.8.8"
@@ -46,7 +46,7 @@ docker_daemon_options:
 # Clean up obsolete packages
 docker_obsolete_packages:
   - docker
-  - docker.io
+  #- docker.io
   - docker-engine
   - docker-doc
   - docker-compose
