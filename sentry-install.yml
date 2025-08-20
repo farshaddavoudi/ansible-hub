@@ -58,6 +58,20 @@
         replace: 'namshi/smtp:latest'
       ignore_errors: true
 
+    - name: Replace problematic GitHub Container Registry images with Docker Hub alternatives
+      replace:
+        path: "{{ sentry_dir }}/docker-compose.yml"
+        regexp: 'ghcr\.io/getsentry/snuba:{{ sentry_version }}'
+        replace: 'getsentry/snuba:{{ sentry_version }}'
+      ignore_errors: true
+
+    - name: Replace other ghcr.io images if they exist
+      replace:
+        path: "{{ sentry_dir }}/docker-compose.yml"
+        regexp: 'ghcr\.io/getsentry/([^:]+):([^\s]+)'
+        replace: 'getsentry/\1:\2'
+      ignore_errors: true
+
     - name: Validate docker-compose file before proceeding
       shell: docker-compose config
       args:
@@ -82,7 +96,7 @@
         - sentry-clickhouse
         - sentry-symbolicator
 
-    - name: Ensure Sentry is running before configuration
+    - name: Ensure Sentry is running before configuration > docker compose up
       docker_compose:
         project_src: "{{ sentry_dir }}"
         remove_orphans: true
