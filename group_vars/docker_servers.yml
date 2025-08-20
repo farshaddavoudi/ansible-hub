@@ -11,7 +11,7 @@ portainer:
     # Skip below if traefik.enable is false
     traefik.http.routers.portainer.rule: "Host(`portainer.farshaddavoudi.ir`)"
     traefik.http.routers.portainer.entrypoints: "https"
-    traefik.http.routers.portainer.tls: "true"
+    traefik.http.routers.portainer.tls: true
     traefik.http.services.portainer.loadbalancer.server.port: "9000"
 
 # Docker Role Variables - Use Ubuntu's repository instead of Docker's official repository
