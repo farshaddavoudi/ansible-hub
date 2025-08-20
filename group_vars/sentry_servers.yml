@@ -1,5 +1,5 @@
 sentry_dir: /srv/docker/sentry
-sentry_version: 26.0.0
+sentry_version: 25.8.0
 sentry_port: 9000
 sentry_url: "https://sentry.ataair.ir"   # optional, only if reverse proxy exists
 sentry_enable_smtp: false  # Set to true if you want to enable SMTP service
