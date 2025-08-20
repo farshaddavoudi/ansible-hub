@@ -194,6 +194,14 @@
           fi
         mode: '0644'
 
+    - name: Create systemd system.conf.d directory
+      file:
+        path: /etc/systemd/system.conf.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
     - name: Configure systemd global proxy (for services like Docker)
       copy:
         dest: /etc/systemd/system.conf.d/proxy.conf
