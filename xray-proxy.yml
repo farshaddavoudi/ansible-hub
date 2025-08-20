@@ -1,6 +1,6 @@
 ---
 - name: Install and configure Xray proxy with global system proxy
-  hosts: docker_servers
+  hosts: sentry_servers
   become: yes
 
   vars:
