@@ -4,10 +4,10 @@
   become: yes
 
   vars:
-    install_git: true      # Set to false to skip git installation
+    install_git: false      # Set to false to skip git installation
     
     dns_config:
-      enabled: true        # Set to false to skip DNS configuration
+      enabled: false        # Set to false to skip DNS configuration
       primary_servers:     # Primary DNS servers (currently using Shecan)
         - 178.22.122.100   # Primary DNS
         - 185.51.200.2     # Secondary DNS

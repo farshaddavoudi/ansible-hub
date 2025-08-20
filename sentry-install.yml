@@ -2,10 +2,12 @@
 # Sentry Self-Hosted Installation & Update Playbook
 # Designed for Docker/Docker Compose environments
 # Optional reverse proxy via sentry_url
-# Optional Matrix webhook integration
 - name: Install/Update Sentry
   hosts: sentry_servers
   become: yes
+
+  roles:
+    - apt-fix  # Ensures apt is in clean state for package installations
 
   tasks:
     - name: Ensure Sentry directory exists
@@ -41,28 +43,21 @@
         - { key: "SENTRY_BEACON", value: "False" }
         # Disable external SMTP to avoid registry issues
         - { key: "SENTRY_USE_EXTERNAL_SMTP", value: "false" }
-        # Optional Matrix webhook
-        - { key: "SENTRY_MATRIX_HOOKSHOT_URL", value: "{{ matrix_hookshot_url | default('') }}" }
-        - { key: "SENTRY_MATRIX_ROOM_ID", value: "{{ matrix_room_id | default('') }}" }
 
-    - name: Check docker-compose version
-      shell: docker-compose --version
-      register: compose_version
-      ignore_errors: true
-
-    - name: Update docker-compose to latest version
-      shell: |
-        # Download latest docker-compose
-        curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-        chmod +x /usr/local/bin/docker-compose
-        # Create symlink if needed
-        ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
-      when: compose_version.stdout is defined and not ('2.' in compose_version.stdout and compose_version.stdout | regex_search('2\.([3-9][0-9]|[4-9][0-9])'))
-      ignore_errors: true
+    - name: Install required packages for Sentry
+      apt:
+        name:
+          - curl
+          - git
+          - python3
+          - python3-pip
+        state: present
+        update_cache: false  # apt-fix role already updated cache
 
     - name: Run Sentry install script
       shell: |
         export REPORT_SELF_HOSTED_ISSUES=0
+        export DEBIAN_FRONTEND=noninteractive
         echo "n" | timeout 300 ./install.sh --skip-user-creation --no-report-self-hosted-issues
       args:
         chdir: "{{ sentry_dir }}"
@@ -70,48 +65,48 @@
       poll: 10
       ignore_errors: true
 
-    - name: Replace problematic SMTP image with working alternative
-      replace:
-        path: "{{ sentry_dir }}/docker-compose.yml"
-        regexp: 'registry\.gitlab\.com/egos-tech/smtp.*'
-        replace: 'namshi/smtp:latest'
-      ignore_errors: true
+    # - name: Replace problematic SMTP image with working alternative
+    #   replace:
+    #     path: "{{ sentry_dir }}/docker-compose.yml"
+    #     regexp: 'registry\.gitlab\.com/egos-tech/smtp.*'
+    #     replace: 'namshi/smtp:latest'
+    #   ignore_errors: true
 
-    - name: Replace problematic GitHub Container Registry images with Docker Hub alternatives
-      replace:
-        path: "{{ sentry_dir }}/docker-compose.yml"
-        regexp: 'ghcr\.io/getsentry/snuba:{{ sentry_version }}'
-        replace: 'getsentry/snuba:{{ sentry_version }}'
-      ignore_errors: true
+    # - name: Replace problematic GitHub Container Registry images with Docker Hub alternatives
+    #   replace:
+    #     path: "{{ sentry_dir }}/docker-compose.yml"
+    #     regexp: 'ghcr\.io/getsentry/snuba:{{ sentry_version }}'
+    #     replace: 'getsentry/snuba:{{ sentry_version }}'
+    #   ignore_errors: true
 
-    - name: Replace other ghcr.io images if they exist
-      replace:
-        path: "{{ sentry_dir }}/docker-compose.yml"
-        regexp: 'ghcr\.io/getsentry/([^:]+):([^\s]+)'
-        replace: 'getsentry/\1:\2'
-      ignore_errors: true
+    # - name: Replace other ghcr.io images if they exist
+    #   replace:
+    #     path: "{{ sentry_dir }}/docker-compose.yml"
+    #     regexp: 'ghcr\.io/getsentry/([^:]+):([^\s]+)'
+    #     replace: 'getsentry/\1:\2'
+    #   ignore_errors: true
 
-    - name: Force replace all ghcr.io references with docker.io
-      shell: |
-        sed -i 's|ghcr\.io/getsentry/|getsentry/|g' docker-compose.yml
-        sed -i 's|ghcr\.io/|docker.io/|g' docker-compose.yml
-      args:
-        chdir: "{{ sentry_dir }}"
-      ignore_errors: true
+    # - name: Force replace all ghcr.io references with docker.io
+    #   shell: |
+    #     sed -i 's|ghcr\.io/getsentry/|getsentry/|g' docker-compose.yml
+    #     sed -i 's|ghcr\.io/|docker.io/|g' docker-compose.yml
+    #   args:
+    #     chdir: "{{ sentry_dir }}"
+    #   ignore_errors: true
 
-    - name: Show docker-compose changes for debugging
-      shell: grep -n "getsentry\|ghcr\.io" docker-compose.yml || echo "No getsentry or ghcr.io references found"
-      args:
-        chdir: "{{ sentry_dir }}"
-      register: image_refs
-      ignore_errors: true
+    # - name: Show docker-compose changes for debugging
+    #   shell: grep -n "getsentry\|ghcr\.io" docker-compose.yml || echo "No getsentry or ghcr.io references found"
+    #   args:
+    #     chdir: "{{ sentry_dir }}"
+    #   register: image_refs
+    #   ignore_errors: true
 
-    - name: Display image references found
-      debug:
-        msg: "Image references: {{ image_refs.stdout_lines }}"
+    # - name: Display image references found
+    #   debug:
+    #     msg: "Image references: {{ image_refs.stdout_lines }}"
 
-    - name: Validate docker-compose file before proceeding
-      shell: docker-compose config
+    - name: Validate docker compose file before proceeding
+      shell: docker compose config
       args:
         chdir: "{{ sentry_dir }}"
       register: compose_validation
@@ -119,7 +114,7 @@
 
     - name: Show compose validation result
       debug:
-        msg: "Docker-compose validation: {{ compose_validation.stderr if compose_validation.failed else 'OK' }}"
+        msg: "Docker compose validation: {{ compose_validation.stderr if compose_validation.failed else 'OK' }}"
 
     - name: Create required Docker volumes for Sentry
       docker_volume:
