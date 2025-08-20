@@ -18,17 +18,29 @@
         ],
         "outbounds": [
           {
-            "protocol": "vmess",
+            "protocol": "vless",
             "settings": {
               "vnext": [
                 {
                   "address": "www.esfahanrestaurant.ir",
                   "port": 443,
                   "users": [
-                    { "id": "91e36299-839a-43e1-874c-df3382c3a805", "alterId": 0, "security": "auto" }
+                    { 
+                      "id": "91e36299-839a-43e1-874c-df3382c3a805",
+                      "encryption": "none"
+                    }
                   ]
                 }
               ]
+            },
+            "streamSettings": {
+              "network": "tcp",
+              "security": "tls",
+              "tlsSettings": {
+                "allowInsecure": true,
+                "fingerprint": "chrome",
+                "alpn": ["h3"]
+              }
             }
           }
         ]
