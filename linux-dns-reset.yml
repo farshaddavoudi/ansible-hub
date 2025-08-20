@@ -1,0 +1,68 @@
+---
+- name: Reset DNS to Default Configuration
+  hosts: linux_servers
+  become: yes
+
+  vars:
+    default_dns_servers:   # Default DNS servers (you can customize these)
+      - 8.8.8.8            # Google DNS
+      - 1.1.1.1            # Cloudflare DNS
+
+  tasks:
+    - name: Reset DNS configuration to defaults
+      block:
+        - name: Check for existing Netplan configuration
+          find:
+            paths: /etc/netplan/
+            patterns: "*.yaml"
+          register: netplan_files
+
+        - name: Remove custom Netplan DNS configuration (if exists)
+          file:
+            path: /etc/netplan/01-netcfg.yaml
+            state: absent
+          notify: 
+            - apply netplan
+            - restart systemd-resolved
+          when: netplan_files.files | length > 0
+
+        - name: Reset systemd-resolved to defaults
+          block:
+            - name: Reset systemd-resolved DNS to defaults
+              lineinfile:
+                path: /etc/systemd/resolved.conf
+                regexp: '^DNS='
+                line: "DNS={{ default_dns_servers | join(' ') }}"
+                backup: yes
+              notify: restart systemd-resolved
+
+            - name: Comment out or remove FallbackDNS setting
+              lineinfile:
+                path: /etc/systemd/resolved.conf
+                regexp: '^FallbackDNS='
+                line: "#FallbackDNS="
+                backup: yes
+              notify: restart systemd-resolved
+
+        - name: Flush DNS cache
+          command: systemctl flush-dns
+          ignore_errors: yes
+
+        - name: Display current DNS configuration
+          command: systemd-resolve --status
+          register: dns_status
+          ignore_errors: yes
+
+        - name: Show DNS status
+          debug:
+            var: dns_status.stdout_lines
+          when: dns_status.stdout_lines is defined
+
+  handlers:
+    - name: apply netplan
+      command: netplan apply
+
+    - name: restart systemd-resolved
+      systemd:
+        name: systemd-resolved
+        state: restarted

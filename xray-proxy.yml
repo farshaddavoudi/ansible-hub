@@ -1,0 +1,93 @@
+---
+- name: Install and configure Xray proxy with global system proxy
+  hosts: docker_servers
+  become: yes
+
+  vars:
+    xray_enabled: true # set false to disable proxy
+    proxy_port: 1080
+    no_proxy_list: "127.0.0.1,localhost,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12"
+    xray_config: |
+      {
+        "inbounds": [
+          {
+            "port": {{ proxy_port }},
+            "listen": "127.0.0.1",
+            "protocol": "socks"
+          }
+        ],
+        "outbounds": [
+          {
+            "protocol": "vmess",
+            "settings": {
+              "vnext": [
+                {
+                  "address": "YOUR_SERVER",
+                  "port": 443,
+                  "users": [
+                    { "id": "UUID-HERE", "alterId": 0, "security": "auto" }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+
+  tasks:
+    - name: Install dependencies
+      apt:
+        name: [curl, unzip]
+        update_cache: yes
+
+    - name: Install Xray
+      shell: |
+        bash <(curl -L https://raw.githubusercontent.com/XTLS/Xray-install/main/install-release.sh)
+      args:
+        creates: /usr/local/bin/xray
+
+    - name: Configure Xray
+      copy:
+        dest: /usr/local/etc/xray/config.json
+        content: "{{ xray_config }}"
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Enable or disable Xray service
+      systemd:
+        name: xray
+        state: "{{ 'started' if xray_enabled else 'stopped' }}"
+        enabled: "{{ xray_enabled }}"
+
+    - name: Configure global proxy environment variables
+      copy:
+        dest: /etc/profile.d/proxy.sh
+        content: |
+          if [ "{{ xray_enabled }}" = "True" ]; then
+            export http_proxy="http://127.0.0.1:{{ proxy_port }}"
+            export https_proxy="http://127.0.0.1:{{ proxy_port }}"
+            export all_proxy="socks5://127.0.0.1:{{ proxy_port }}"
+            export no_proxy="{{ no_proxy_list }}"
+          else
+            unset http_proxy
+            unset https_proxy
+            unset all_proxy
+            unset no_proxy
+          fi
+        mode: '0644'
+
+    - name: Configure systemd global proxy (for services like Docker)
+      copy:
+        dest: /etc/systemd/system.conf.d/proxy.conf
+        content: |
+          [Manager]
+          DefaultEnvironment="http_proxy=http://127.0.0.1:{{ proxy_port }}" \
+                             "https_proxy=http://127.0.0.1:{{ proxy_port }}" \
+                             "all_proxy=socks5://127.0.0.1:{{ proxy_port }}" \
+                             "no_proxy={{ no_proxy_list }}"
+      notify: Reload systemd
+
+  handlers:
+    - name: Reload systemd
+      command: systemctl daemon-reexec

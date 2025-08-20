@@ -5,12 +5,15 @@
 
   vars:
     install_git: true      # Set to false to skip git installation
-    shecan_dns_servers:    # Shecan DNS servers
-      - 178.22.122.100     # Primary Shecan DNS
-      - 185.51.200.2       # Secondary Shecan DNS
-    fallback_dns_servers: # Fallback DNS servers
-      - 8.8.8.8            # Google DNS
-      - 1.1.1.1            # Cloudflare DNS
+    
+    dns_config:
+      enabled: true        # Set to false to skip DNS configuration
+      primary_servers:     # Primary DNS servers (currently using Shecan)
+        - 178.22.122.100   # Primary DNS
+        - 185.51.200.2     # Secondary DNS
+      fallback_servers:    # Fallback DNS servers
+        - 8.8.8.8          # Google DNS
+        - 1.1.1.1          # Cloudflare DNS
 
   roles:
     - apt-fix
@@ -50,7 +53,7 @@
               lineinfile:
                 path: /etc/systemd/resolved.conf
                 regexp: '^#?DNS='
-                line: "DNS={{ (shecan_dns_servers + fallback_dns_servers) | join(' ') }}"
+                line: "DNS={{ (dns_config.primary_servers + dns_config.fallback_servers) | join(' ') }}"
                 backup: yes
               notify: restart systemd-resolved
 
@@ -58,10 +61,11 @@
               lineinfile:
                 path: /etc/systemd/resolved.conf
                 regexp: '^#?FallbackDNS='
-                line: "FallbackDNS={{ fallback_dns_servers | join(' ') }}"
+                line: "FallbackDNS={{ dns_config.fallback_servers | join(' ') }}"
                 backup: yes
               notify: restart systemd-resolved
           when: netplan_files.files | length == 0
+      when: dns_config.enabled
 
     - name: Install Git
       apt:
