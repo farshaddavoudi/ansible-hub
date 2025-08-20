@@ -93,10 +93,12 @@
   roles:
     - role: geerlingguy.docker
 
-  vars_files:
-    - role_vars/geerlingguy.docker.yml
-
   post_tasks:
+    - name: Install docker-compose via apt
+      apt:
+        name: docker-compose
+        state: present
+
     - name: Create Portainer data directory
       file:
         path: "{{ portainer.config_dir }}/data"
