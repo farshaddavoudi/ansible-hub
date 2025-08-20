@@ -129,10 +129,15 @@
         - sentry-clickhouse
         - sentry-symbolicator
 
-    - name: Ensure Sentry is running before configuration > docker compose up
-      docker_compose:
+    # - name: Ensure Sentry is running before configuration > docker compose up
+    #   docker_compose:
+    #     project_src: "{{ sentry_dir }}"
+    #     remove_orphans: true
+    #     state: present
+
+    - name: Run docker compose
+      community.docker.docker_compose_v2:
         project_src: "{{ sentry_dir }}"
-        remove_orphans: true
         state: present
 
     - name: Wait for Sentry config.yml to be created
