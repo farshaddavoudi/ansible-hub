@@ -1,0 +1,7 @@
+sentry_dir: /srv/docker/sentry
+sentry_version: 26.0.0
+sentry_port: 9000
+sentry_url: "https://sentry.ataair.ir"   # optional, only if reverse proxy exists
+sentry_superusers:
+  - email: admin@example.come
+    password: 123456

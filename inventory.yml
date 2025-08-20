@@ -9,7 +9,7 @@ all:
       ansible_user: admin
     atalinux_haproxy_180:
       ansible_host: #.#.#.180
-    atalinux_monitoring_80:
+    atalinux_observability_80:
       ansible_host: #.#.#.80
     atalinux_dev_37:
       ansible_host: #.#.#.370
@@ -51,9 +51,12 @@ all:
           hosts:
             #atalinux_dev_37:
             arvan_vm3_203:
+        sentry_servers:
+          hosts:
+            atalinux_observability_80:
         observability_install_servers:
           hosts:
-            atalinux_monitoring_80:
+            atalinux_observability_80:
         observability_config_servers:
           hosts:
             atalinux_minio_144:

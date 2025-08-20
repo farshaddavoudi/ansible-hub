@@ -1,0 +1,66 @@
+---
+# Sentry Self-Hosted Installation & Update Playbook
+# Designed for Docker/Docker Compose environments
+# Optional reverse proxy via sentry_url
+# Optional Matrix webhook integration
+- name: Install/Update Sentry
+  hosts: sentry_servers
+  become: yes
+
+  tasks:
+    - name: Ensure Sentry directory exists
+      file:
+        path: "{{ sentry_dir }}"
+        state: directory
+        mode: 0755
+
+    - name: Checkout Sentry self-hosted repository
+      git:
+        repo: https://github.com/getsentry/self-hosted.git  # Default repo
+        version: "{{ sentry_version }}"
+        dest: "{{ sentry_dir }}"
+        force: true
+      register: sentry_repo
+
+    - name: Configure .env file
+      lineinfile:
+        path: "{{ sentry_dir }}/.env"
+        regexp: "^{{ item.key }}="
+        line: "{{ item.key }}={{ item.value }}"
+      loop:
+        - { key: "SENTRY_BIND", value: "{{ sentry_port }}" }
+        - { key: "SENTRY_BEACON", value: "False" }
+        # Optional Matrix webhook
+        - { key: "SENTRY_MATRIX_HOOKSHOT_URL", value: "{{ matrix_hookshot_url | default('') }}" }
+        - { key: "SENTRY_MATRIX_ROOM_ID", value: "{{ matrix_room_id | default('') }}" }
+
+    - name: Run Sentry install script if repository changed
+      command: ./install.sh --no-user-prompt
+      args:
+        chdir: "{{ sentry_dir }}"
+      when: sentry_repo.after != sentry_repo.before
+
+    - name: Configure sentry config.yml for external URL (reverse proxy)
+      lineinfile:
+        path: "{{ sentry_dir }}/sentry/config.yml"
+        regexp: "^#?\\s*system.url-prefix:"
+        line: "system.url-prefix: {{ sentry_url }}"
+      when: sentry_url is defined
+
+    - name: Start Sentry docker-compose stack
+      docker_compose:
+        project_src: "{{ sentry_dir }}"
+        remove_orphans: true
+        state: present
+
+    - name: Create Sentry superusers
+      command: >
+        docker-compose run --rm web createuser
+          --email "{{ item.email }}"
+          --password "{{ item.password }}"
+          --superuser
+          --no-input
+      args:
+        chdir: "{{ sentry_dir }}"
+      loop: "{{ sentry_superusers }}"
+      ignore_errors: true
