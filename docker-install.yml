@@ -30,11 +30,29 @@
       failed_when: false
       when: apt_processes.stdout_lines | length > 0
 
+    - name: Clean apt cache and lists
+      shell: |
+        apt-get clean
+        rm -rf /var/lib/apt/lists/*
+        mkdir -p /var/lib/apt/lists/partial
+      changed_when: false
+      failed_when: false
+
+    - name: Update apt cache manually
+      shell: apt-get update
+      register: apt_update_result
+      failed_when: false
+      changed_when: false
+
     - name: Ensure python3-pip is installed
       apt:
         name: python3-pip
         state: present
-        update_cache: true
+        update_cache: false  # Don't update cache here since we did it manually above
+      register: apt_result
+      until: apt_result is succeeded
+      retries: 2
+      delay: 5
 
     - name: Install Docker SDK for Python via apt
       apt:
