@@ -58,6 +58,36 @@
         state: absent
       ignore_errors: true
 
+    - name: Remove incomplete SMTP service from docker-compose if it exists
+      blockinfile:
+        path: "{{ sentry_dir }}/docker-compose.yml"
+        marker: "# {mark} ANSIBLE MANAGED SMTP SERVICE REMOVAL"
+        block: ""
+        state: absent
+      ignore_errors: true
+
+    - name: Remove SMTP service definition entirely if no image is specified
+      replace:
+        path: "{{ sentry_dir }}/docker-compose.yml"
+        regexp: '(?ms)^  smtp:\s*\n((?:    .*\n)*?)(?=^  \S|\Z)'
+        replace: ''
+      ignore_errors: true
+
+    - name: Add standard SMTP service if needed
+      blockinfile:
+        path: "{{ sentry_dir }}/docker-compose.yml"
+        marker: "# {mark} ANSIBLE MANAGED SMTP SERVICE"
+        insertafter: "^services:"
+        block: |2
+            smtp:
+              image: mailhog/mailhog:latest
+              ports:
+                - "1025:1025"
+                - "8025:8025"
+              restart: unless-stopped
+        state: present
+      when: sentry_enable_smtp | default(false)
+
     - name: Create required Docker volumes for Sentry
       docker_volume:
         name: "{{ item }}"
