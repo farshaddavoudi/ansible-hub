@@ -54,10 +54,23 @@
 
     - name: Install Xray
       shell: |
-        bash <(curl -L https://raw.githubusercontent.com/XTLS/Xray-install/main/install-release.sh)
+        bash <(curl -L https://raw.githubusercontent.com/XTLS/Xray-install/main/install-release.sh) install
       args:
         executable: /bin/bash
         creates: /usr/local/bin/xray
+
+    - name: Check what Xray services were created
+      shell: systemctl list-unit-files | grep -i xray
+      register: xray_services
+      ignore_errors: yes
+
+    - name: Debug - Show available Xray services
+      debug:
+        var: xray_services.stdout_lines
+
+    - name: Reload systemd daemon after Xray installation
+      systemd:
+        daemon_reload: yes
 
     - name: Create Xray configuration directory
       file:
@@ -80,6 +93,7 @@
         name: xray
         state: "{{ 'started' if xray_enabled else 'stopped' }}"
         enabled: "{{ xray_enabled }}"
+        daemon_reload: yes
 
     - name: Configure global proxy environment variables
       copy:
