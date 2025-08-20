@@ -59,11 +59,36 @@
       retries: 3
       delay: 5
 
-    - name: Ensure Docker SDK for Python is installed
+    - name: Install Docker SDK for Python via apt (primary method)
+      apt:
+        name: python3-docker
+        state: present
+      register: apt_docker_result
+      failed_when: false
+
+    - name: Install Docker SDK via pip using Tsinghua mirror (if apt failed)
       pip:
         name: docker
         state: present
-        extra_args: --break-system-packages
+        extra_args: --break-system-packages --index-url https://pypi.tuna.tsinghua.edu.cn/simple/ --trusted-host pypi.tuna.tsinghua.edu.cn
+      register: pip_tsinghua_result
+      when: apt_docker_result.failed | default(false)
+
+    - name: Try Douban mirror as last resort
+      pip:
+        name: docker
+        state: present
+        extra_args: --break-system-packages --index-url https://pypi.douban.com/simple/ --trusted-host pypi.douban.com
+      register: pip_douban_result
+      failed_when: false
+      when: 
+        - apt_docker_result.failed | default(false)
+        - pip_tsinghua_result.failed | default(true)
+
+    - name: Verify Docker SDK installation
+      command: python3 -c "import docker; print('Docker SDK installed successfully')"
+      register: docker_sdk_check
+      changed_when: false
 
   roles:
     - role: geerlingguy.docker
