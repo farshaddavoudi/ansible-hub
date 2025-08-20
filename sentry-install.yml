@@ -51,6 +51,12 @@
         chdir: "{{ sentry_dir }}"
       when: sentry_repo.after != sentry_repo.before
 
+    - name: Ensure install script has run (run again if not changed)
+      command: ./install.sh --no-user-prompt
+      args:
+        chdir: "{{ sentry_dir }}"
+      when: sentry_repo.after == sentry_repo.before
+
     - name: Replace problematic SMTP image with working alternative
       replace:
         path: "{{ sentry_dir }}/docker-compose.yml"
