@@ -40,12 +40,25 @@
         chdir: "{{ sentry_dir }}"
       when: sentry_repo.after != sentry_repo.before
 
+    - name: Ensure Sentry is running before configuration
+      docker_compose:
+        project_src: "{{ sentry_dir }}"
+        remove_orphans: true
+        state: present
+
+    - name: Wait for Sentry config.yml to be created
+      wait_for:
+        path: "{{ sentry_dir }}/sentry/config.yml"
+        timeout: 300
+      when: sentry_url is defined
+
     - name: Configure sentry config.yml for external URL (reverse proxy)
       lineinfile:
         path: "{{ sentry_dir }}/sentry/config.yml"
         regexp: "^#?\\s*system.url-prefix:"
         line: "system.url-prefix: {{ sentry_url }}"
       when: sentry_url is defined
+      notify: Restart Sentry
 
     - name: Start Sentry docker-compose stack
       docker_compose:
@@ -64,3 +77,11 @@
         chdir: "{{ sentry_dir }}"
       loop: "{{ sentry_superusers }}"
       ignore_errors: true
+
+  handlers:
+    - name: Restart Sentry
+      docker_compose:
+        project_src: "{{ sentry_dir }}"
+        remove_orphans: true
+        state: present
+        restart: true
