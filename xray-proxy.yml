@@ -59,6 +59,14 @@
         executable: /bin/bash
         creates: /usr/local/bin/xray
 
+    - name: Create Xray configuration directory
+      file:
+        path: /usr/local/etc/xray
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
     - name: Configure Xray
       copy:
         dest: /usr/local/etc/xray/config.json
