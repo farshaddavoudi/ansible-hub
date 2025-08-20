@@ -56,6 +56,7 @@
       shell: |
         bash <(curl -L https://raw.githubusercontent.com/XTLS/Xray-install/main/install-release.sh)
       args:
+        executable: /bin/bash
         creates: /usr/local/bin/xray
 
     - name: Configure Xray
