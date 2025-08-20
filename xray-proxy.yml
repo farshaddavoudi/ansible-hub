@@ -181,6 +181,7 @@
         owner: root
         group: root
         mode: '0644'
+      notify: Restart Xray
 
     - name: Enable or disable Xray service
       systemd:
@@ -228,3 +229,9 @@
   handlers:
     - name: Reload systemd
       command: systemctl daemon-reexec
+
+    - name: Restart Xray
+      systemd:
+        name: xray
+        state: restarted
+        daemon_reload: yes
