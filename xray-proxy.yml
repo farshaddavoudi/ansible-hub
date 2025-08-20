@@ -54,10 +54,58 @@
 
     - name: Install Xray
       shell: |
-        bash <(curl -L https://raw.githubusercontent.com/XTLS/Xray-install/main/install-release.sh) install
+        # Download and run Xray installation script
+        curl -L https://raw.githubusercontent.com/XTLS/Xray-install/main/install-release.sh -o /tmp/install-xray.sh
+        chmod +x /tmp/install-xray.sh
+        bash /tmp/install-xray.sh install --version latest
       args:
         executable: /bin/bash
         creates: /usr/local/bin/xray
+      register: xray_install_result
+
+    - name: Debug - Show Xray installation output
+      debug:
+        var: xray_install_result
+
+    - name: Verify Xray binary installation
+      stat:
+        path: /usr/local/bin/xray
+      register: xray_binary_check
+
+    - name: Alternative Xray installation if first method failed
+      block:
+        - name: Copy local Xray archive to target
+          copy:
+            src: files/xtray-linux-64-v25.8.3.zip
+            dest: /tmp/xray.zip
+            mode: '0644'
+
+        - name: Extract Xray binary
+          unarchive:
+            src: /tmp/xray.zip
+            dest: /tmp/
+            remote_src: yes
+
+        - name: Install Xray binary
+          copy:
+            src: /tmp/xray
+            dest: /usr/local/bin/xray
+            mode: '0755'
+            owner: root
+            group: root
+            remote_src: yes
+
+        - name: Create Xray directories
+          file:
+            path: "{{ item }}"
+            state: directory
+            owner: root
+            group: root
+            mode: '0755'
+          loop:
+            - /usr/local/etc/xray
+            - /var/log/xray
+      when: not xray_binary_check.stat.exists
 
     - name: Check what Xray services were created
       shell: systemctl list-unit-files | grep -i xray
