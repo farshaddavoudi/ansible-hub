@@ -30,18 +30,15 @@ docker_packages:
   - docker.io
   - docker-compose
 
-# Docker daemon configuration for Iran
+# Docker daemon configuration for Iran - multiple mirrors for fallback
 docker_daemon_options:
-  insecure-registries:
-    - "docker.arvancloud.ir"
   registry-mirrors:
     - "https://docker.arvancloud.ir"
     - "https://docker.mirrors.sjtug.sjtu.edu.cn"
     - "https://registry-1.docker.io"
     - "https://mirror.baidubce.com"
-  dns:
-    - "8.8.8.8"
-    - "1.1.1.1"
+  insecure-registries:
+    - "docker.arvancloud.ir"
 
 # Clean up obsolete packages
 docker_obsolete_packages:

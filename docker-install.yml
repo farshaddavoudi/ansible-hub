@@ -99,6 +99,61 @@
         name: docker-compose
         state: present
 
+    - name: Stop Docker service before fixing configuration
+      systemd:
+        name: docker
+        state: stopped
+      failed_when: false
+
+    - name: Check if daemon.json exists and backup if problematic
+      stat:
+        path: /etc/docker/daemon.json
+      register: daemon_json_stat
+
+    - name: Read current daemon.json content
+      slurp:
+        src: /etc/docker/daemon.json
+      register: daemon_json_content
+      when: daemon_json_stat.stat.exists
+
+    - name: Backup problematic daemon.json
+      copy:
+        src: /etc/docker/daemon.json
+        dest: /etc/docker/daemon.json.backup
+        remote_src: true
+      when: daemon_json_stat.stat.exists and '"dns"' in (daemon_json_content.content | b64decode)
+
+    - name: Create simplified daemon.json
+      copy:
+        content: |
+          {
+            "registry-mirrors": [
+              "https://docker.arvancloud.ir"
+            ],
+            "insecure-registries": [
+              "docker.arvancloud.ir"
+            ]
+          }
+        dest: /etc/docker/daemon.json
+        mode: '0644'
+      when: daemon_json_stat.stat.exists and '"dns"' in (daemon_json_content.content | b64decode)
+
+    - name: Reload systemd daemon
+      systemd:
+        daemon_reload: true
+
+    - name: Start Docker service
+      systemd:
+        name: docker
+        state: started
+        enabled: true
+      register: docker_start_result
+
+    - name: Debug Docker service status if start failed
+      command: systemctl status docker.service -l
+      when: docker_start_result.failed | default(false)
+      failed_when: false
+
     - name: Create Portainer data directory
       file:
         path: "{{ portainer.config_dir }}/data"
