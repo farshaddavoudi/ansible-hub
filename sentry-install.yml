@@ -22,6 +22,15 @@
         force: true
       register: sentry_repo
 
+    - name: Remove any existing docker-compose override files that might contain custom images
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ sentry_dir }}/docker-compose.override.yml"
+        - "{{ sentry_dir }}/docker-compose.local.yml"
+      ignore_errors: true
+
     - name: Configure .env file
       lineinfile:
         path: "{{ sentry_dir }}/.env"
@@ -30,6 +39,8 @@
       loop:
         - { key: "SENTRY_BIND", value: "{{ sentry_port }}" }
         - { key: "SENTRY_BEACON", value: "False" }
+        # Disable external SMTP to avoid registry issues
+        - { key: "SENTRY_USE_EXTERNAL_SMTP", value: "false" }
         # Optional Matrix webhook
         - { key: "SENTRY_MATRIX_HOOKSHOT_URL", value: "{{ matrix_hookshot_url | default('') }}" }
         - { key: "SENTRY_MATRIX_ROOM_ID", value: "{{ matrix_room_id | default('') }}" }
@@ -39,6 +50,13 @@
       args:
         chdir: "{{ sentry_dir }}"
       when: sentry_repo.after != sentry_repo.before
+
+    - name: Check for and remove problematic SMTP configuration in docker-compose
+      lineinfile:
+        path: "{{ sentry_dir }}/docker-compose.yml"
+        regexp: ".*registry\\.gitlab\\.com.*"
+        state: absent
+      ignore_errors: true
 
     - name: Create required Docker volumes for Sentry
       docker_volume:
