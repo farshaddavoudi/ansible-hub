@@ -49,7 +49,7 @@
     - name: Install dependencies
       apt:
         name: [curl, unzip]
-        update_cache: yes
+        update_cache: false
         allow_unauthenticated: yes
 
     - name: Install Xray
