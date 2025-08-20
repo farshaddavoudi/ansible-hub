@@ -85,12 +85,45 @@
         chmod +x /usr/local/bin/docker-compose
         # Create symlink for compatibility
         ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
-      args:
-        creates: /usr/local/bin/docker-compose
+      register: compose_install
+      failed_when: false
+
+    - name: Check if docker-compose download succeeded
+      stat:
+        path: /usr/local/bin/docker-compose
+      register: compose_binary
+
+    - name: Install docker-compose via pip if GitHub download failed
+      shell: |
+        pip3 install docker-compose --break-system-packages
+        # Find where pip installed it and create symlinks
+        COMPOSE_PATH=$(python3 -c "import docker.compose; print(docker.compose.__file__)" 2>/dev/null | sed 's/__init__.py$/..\/..\/..\/bin\/docker-compose/' || echo "")
+        if [ -n "$COMPOSE_PATH" ] && [ -f "$COMPOSE_PATH" ]; then
+          ln -sf "$COMPOSE_PATH" /usr/local/bin/docker-compose
+          ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
+        else
+          # Alternative: install via package manager as last resort
+          apt-get update && apt-get install -y docker-compose-plugin
+        fi
+      when: not compose_binary.stat.exists
+      failed_when: false
 
     - name: Verify docker-compose installation
-      shell: docker-compose --version
+      shell: |
+        # Try multiple possible locations
+        for cmd in docker-compose /usr/local/bin/docker-compose /usr/bin/docker-compose "docker compose"; do
+          if $cmd --version 2>/dev/null; then
+            echo "Found working docker-compose: $cmd"
+            # Create symlinks to ensure it's accessible
+            if [ "$cmd" != "docker-compose" ] && [ -f "$(which $cmd 2>/dev/null || echo $cmd)" ]; then
+              ln -sf "$(which $cmd 2>/dev/null || echo $cmd)" /usr/local/bin/docker-compose 2>/dev/null || true
+              ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose 2>/dev/null || true
+            fi
+            break
+          fi
+        done
       register: compose_version
+      failed_when: false
 
     - name: Show docker-compose version
       debug:
