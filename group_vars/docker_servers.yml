@@ -13,21 +13,20 @@ portainer:
     traefik.http.routers.portainer.tls: true
     traefik.http.services.portainer.loadbalancer.server.port: "9000"
 
-# Docker Role Variables - Use Ubuntu's repository instead of Docker's official repository
-# This avoids issues with blocked access to download.docker.com in Iran
+# Docker Role Variables - Use Ubuntu's repository for Docker engine only
+# Install Docker Compose manually to get the latest version
 docker_edition: 'ce'
 docker_service_manage: true
 docker_service_state: started
 docker_service_enabled: true
-docker_add_repo: true  # Enable Docker's official repository
+docker_add_repo: false  # Disable Docker's official repository
 docker_packages_state: present
-docker_install_compose_plugin: true
-docker_install_compose: true  # Install traditional docker-compose
+docker_install_compose_plugin: false  # We'll install it manually
+docker_install_compose: false  # We'll install it manually
 
-# Install Docker from Ubuntu's repository
+# Install only Docker engine from Ubuntu's repository
 docker_packages:
   - docker.io
-  - docker-compose
 
 # Docker daemon configuration for Iran - multiple mirrors for fallback
 docker_daemon_options:
