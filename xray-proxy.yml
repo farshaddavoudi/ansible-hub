@@ -22,10 +22,10 @@
             "settings": {
               "vnext": [
                 {
-                  "address": "YOUR_SERVER",
+                  "address": "www.esfahanrestaurant.ir",
                   "port": 443,
                   "users": [
-                    { "id": "UUID-HERE", "alterId": 0, "security": "auto" }
+                    { "id": "91e36299-839a-43e1-874c-df3382c3a805", "alterId": 0, "security": "auto" }
                   ]
                 }
               ]

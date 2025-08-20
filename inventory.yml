@@ -12,7 +12,8 @@ all:
     atalinux_observability_80:
       ansible_host: #.#.#.80
     atalinux_dev_37:
-      ansible_host: #.#.#.370
+      ansible_host: 192.168.1.37
+      ansible_user: ansible
     atalinux_k8smaster1_132:
       ansible_host: #.#.#.132
     atalinux_k8sworker1_133:
@@ -45,15 +46,15 @@ all:
       children:
         docker_servers:
           hosts:
-            #atalinux_dev_37:
-            arvan_vm3_203:
+            atalinux_observability_80:
+            #arvan_vm3_203:
         traefik_servers:
           hosts:
             #atalinux_dev_37:
             arvan_vm3_203:
         sentry_servers:
           hosts:
-            atalinux_observability_80:
+            atalinux_dev_37:
         observability_install_servers:
           hosts:
             atalinux_observability_80:

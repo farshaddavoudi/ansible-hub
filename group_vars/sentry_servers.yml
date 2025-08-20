@@ -4,5 +4,5 @@ sentry_port: 9000
 sentry_url: "https://sentry.ataair.ir"   # optional, only if reverse proxy exists
 sentry_enable_smtp: false  # Set to true if you want to enable SMTP service
 sentry_superusers:
-  - email: admin@example.come
+  - email: admin@ataair.ir
     password: 123456
