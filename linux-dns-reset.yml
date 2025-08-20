@@ -4,58 +4,98 @@
   become: yes
 
   vars:
-    default_dns_servers:   # Default DNS servers (you can customize these)
-      - 8.8.8.8            # Google DNS
-      - 1.1.1.1            # Cloudflare DNS
+    dns_config:
+      default_servers:     # Default DNS servers to reset to
+        - 8.8.8.8          # Google DNS
+        - 1.1.1.1          # Cloudflare DNS
 
   tasks:
     - name: Reset DNS configuration to defaults
       block:
-        - name: Check for existing Netplan configuration
+        - name: Find all Netplan configuration files
           find:
             paths: /etc/netplan/
             patterns: "*.yaml"
           register: netplan_files
 
-        - name: Remove custom Netplan DNS configuration (if exists)
-          file:
-            path: /etc/netplan/01-netcfg.yaml
-            state: absent
-          notify: 
-            - apply netplan
-            - restart systemd-resolved
+        - name: Reset Netplan DNS configuration
+          block:
+            - name: Read current Netplan configurations
+              slurp:
+                src: "{{ item.path }}"
+              register: netplan_content
+              loop: "{{ netplan_files.files }}"
+
+            - name: Parse and update Netplan configurations
+              copy:
+                content: |
+                  network:
+                    version: 2
+                    ethernets:
+                      {{ ansible_default_ipv4.interface | default('ens160') }}:
+                        addresses:
+                          - {{ ansible_default_ipv4.address }}/{{ ansible_default_ipv4.netmask | ansible.utils.ipaddr('prefix') }}
+                        routes:
+                          - to: default
+                            via: {{ ansible_default_ipv4.gateway }}
+                        nameservers:
+                          addresses: {{ dns_config.default_servers | to_yaml }}
+                dest: /etc/netplan/01-netcfg.yaml
+                backup: yes
+                mode: '0600'
+              notify: 
+                - apply netplan
+                - restart systemd-resolved
+
+            - name: Remove other Netplan files with DNS configuration
+              file:
+                path: "{{ item.item.path }}"
+                state: absent
+              loop: "{{ netplan_content.results }}"
+              when: 
+                - item.item.path != "/etc/netplan/01-netcfg.yaml"
+                - "'nameservers' in (item.content | b64decode)"
+              notify: 
+                - apply netplan
+                - restart systemd-resolved
           when: netplan_files.files | length > 0
 
-        - name: Reset systemd-resolved to defaults
+        - name: Reset systemd-resolved configuration
           block:
-            - name: Reset systemd-resolved DNS to defaults
+            - name: Comment out custom DNS in systemd-resolved
               lineinfile:
                 path: /etc/systemd/resolved.conf
                 regexp: '^DNS='
-                line: "DNS={{ default_dns_servers | join(' ') }}"
+                state: absent
                 backup: yes
               notify: restart systemd-resolved
 
-            - name: Comment out or remove FallbackDNS setting
+            - name: Comment out custom FallbackDNS in systemd-resolved
               lineinfile:
                 path: /etc/systemd/resolved.conf
                 regexp: '^FallbackDNS='
-                line: "#FallbackDNS="
+                state: absent
                 backup: yes
               notify: restart systemd-resolved
 
-        - name: Flush DNS cache
-          command: systemctl flush-dns
-          ignore_errors: yes
+        - name: Flush DNS cache and restart services
+          block:
+            - name: Flush systemd-resolved cache
+              command: resolvectl flush-caches
+              ignore_errors: yes
+
+            - name: Wait for network configuration to apply
+              pause:
+                seconds: 3
 
         - name: Display current DNS configuration
-          command: systemd-resolve --status
+          command: resolvectl status
           register: dns_status
           ignore_errors: yes
 
-        - name: Show DNS status
+        - name: Show current DNS status
           debug:
-            var: dns_status.stdout_lines
+            msg: "{{ dns_status.stdout_lines | select('match', '.*DNS Server.*') | list }}"
           when: dns_status.stdout_lines is defined
 
   handlers:
