@@ -1,0 +1,83 @@
+---
+# APT Package Manager Fix Role
+# This role ensures apt is in a clean state and ready for package operations
+
+- name: Check if this is a Debian/Ubuntu system
+  fail:
+    msg: "This role only works on Debian/Ubuntu systems"
+  when: ansible_os_family != "Debian"
+
+- name: Fix apt package manager issues
+  block:
+    - name: Wait for automatic system updates to complete
+      shell: while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do sleep 1; done
+      changed_when: false
+      timeout: 300  # 5 minute timeout
+
+    - name: Kill any hanging apt processes
+      shell: |
+        sudo pkill -f apt || true
+        sudo pkill -f dpkg || true
+        sudo pkill -f unattended-upgrade || true
+      changed_when: false
+      ignore_errors: true
+
+    - name: Remove apt locks if they exist
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /var/lib/dpkg/lock-frontend
+        - /var/lib/dpkg/lock
+        - /var/cache/apt/archives/lock
+        - /var/lib/apt/lists/lock
+      ignore_errors: true
+
+    - name: Configure dpkg to avoid interactive prompts
+      copy:
+        content: |
+          APT::Get::Assume-Yes "true";
+          APT::Get::force-yes "true";
+          DPkg::Options "--force-confdef";
+          DPkg::Options "--force-confold";
+          DPkg::Options "--force-confnew";
+        dest: /etc/apt/apt.conf.d/90ansible-noninteractive
+        mode: '0644'
+        backup: yes
+
+    - name: Clean apt cache and lists
+      shell: |
+        apt-get clean
+        apt-get autoclean
+        rm -rf /var/lib/apt/lists/*
+      changed_when: false
+
+    - name: Update apt cache with retries
+      apt:
+        update_cache: yes
+        cache_valid_time: 0
+        force_apt_get: yes
+      register: apt_update_result
+      until: apt_update_result is succeeded
+      retries: 5
+      delay: 10
+      environment:
+        DEBIAN_FRONTEND: noninteractive
+
+  rescue:
+    - name: Handle apt update failure
+      debug:
+        msg: "APT update failed after retries. Check network connectivity and repository configuration."
+      
+    - name: Try alternative apt update method
+      shell: apt-get update --fix-missing
+      environment:
+        DEBIAN_FRONTEND: noninteractive
+      ignore_errors: true
+
+- name: Verify apt is working
+  apt:
+    name: apt-utils
+    state: present
+  environment:
+    DEBIAN_FRONTEND: noninteractive
