@@ -77,7 +77,21 @@
         name: docker-compose
         state: present
 
-    - name: Ensure Docker daemon configuration is valid
+    - name: Stop Docker service to fix configuration
+      systemd:
+        name: docker
+        state: stopped
+      failed_when: false
+
+    - name: Backup existing daemon.json if it contains problematic settings
+      shell: |
+        if [ -f /etc/docker/daemon.json ] && grep -q '"dns"' /etc/docker/daemon.json; then
+          cp /etc/docker/daemon.json /etc/docker/daemon.json.backup
+        fi
+      failed_when: false
+      changed_when: false
+
+    - name: Ensure Docker daemon configuration is clean and valid
       copy:
         content: |
           {
@@ -93,9 +107,13 @@
           }
         dest: /etc/docker/daemon.json
         mode: '0644'
-        backup: true
-      notify: restart docker
-      when: docker_daemon_options is defined
+
+    - name: Reload systemd and start Docker service
+      systemd:
+        name: docker
+        state: started
+        enabled: true
+        daemon_reload: true
 
     - name: Create Portainer data directory
       file:
