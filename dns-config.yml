@@ -1,0 +1,94 @@
+---
+- name: Configure DNS Settings
+  hosts: atalinux_dev_37
+  become: yes
+
+  vars:
+    dns_servers:             # DNS servers list (primary + fallback)
+      - 178.22.122.100       # Shecan Primary DNS
+      - 185.51.200.2         # Shecan Secondary DNS
+      - 8.8.8.8              # Google DNS
+      - 1.1.1.1              # Cloudflare DNS
+
+  tasks:
+    - name: Configure DNS settings
+      block:
+        # Method 1: Netplan (modern Ubuntu systems)
+        - name: Check for existing Netplan configuration files
+          find:
+            paths: /etc/netplan/
+            patterns: "*.yaml,*.yml"
+          register: netplan_files
+
+        - name: Configure DNS via Netplan (Ubuntu 18.04+)
+          block:
+            - name: Check if Ansible-managed Netplan DNS file already exists
+              stat:
+                path: /etc/netplan/99-ansible-dns.yaml
+              register: ansible_netplan_exists
+
+            - name: Copy existing Netplan file to Ansible-managed configuration
+              copy:
+                src: "{{ netplan_files.files[0].path }}"
+                dest: /etc/netplan/99-ansible-dns.yaml
+                remote_src: yes
+                backup: yes
+                mode: '0600'
+              when: not ansible_netplan_exists.stat.exists
+
+            - name: Create DNS servers list
+              set_fact:
+                dns_servers_yaml: |
+                  {% for dns_server in dns_servers %}
+                        - {{ dns_server }}
+                  {% endfor %}
+
+            - name: Update DNS nameservers in Ansible-managed Netplan file
+              replace:
+                path: /etc/netplan/99-ansible-dns.yaml
+                regexp: '(addresses:\s*\n)(\s+- .+\n)+'
+                replace: "addresses:\n{{ dns_servers_yaml }}"
+                backup: yes
+              notify: 
+                - apply netplan
+                - restart systemd-resolved
+                - flush dns cache
+
+          when: netplan_files.files | length > 0
+
+        # Method 2: Fallback to systemd-resolved for non-Netplan systems
+        - name: Configure DNS via systemd-resolved (fallback)
+          block:
+            - name: Configure systemd-resolved DNS
+              lineinfile:
+                path: /etc/systemd/resolved.conf
+                regexp: '^#?DNS='
+                line: "DNS={{ dns_servers | join(' ') }}"
+                backup: yes
+              notify: 
+                - restart systemd-resolved
+                - flush dns cache
+
+            - name: Configure systemd-resolved FallbackDNS
+              lineinfile:
+                path: /etc/systemd/resolved.conf
+                regexp: '^#?FallbackDNS='
+                line: "FallbackDNS={{ dns_servers[-2:] | join(' ') }}"
+                backup: yes
+              notify: 
+                - restart systemd-resolved
+                - flush dns cache
+
+          when: netplan_files.files | length == 0
+
+  handlers:
+    - name: apply netplan
+      command: netplan apply
+
+    - name: restart systemd-resolved
+      systemd:
+        name: systemd-resolved
+        state: restarted
+
+    - name: flush dns cache
+      command: systemd-resolve --flush-caches

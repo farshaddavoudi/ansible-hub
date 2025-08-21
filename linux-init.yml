@@ -5,15 +5,6 @@
 
   vars:
     install_git: false      # Set to false to skip git installation
-    
-    dns_config:
-      enabled: false        # Set to false to skip DNS configuration
-      primary_servers:     # Primary DNS servers (currently using Shecan)
-        - 178.22.122.100   # Primary DNS
-        - 185.51.200.2     # Secondary DNS
-      fallback_servers:    # Fallback DNS servers
-        - 8.8.8.8          # Google DNS
-        - 1.1.1.1          # Cloudflare DNS
 
   roles:
     - apt-fix
@@ -23,62 +14,9 @@
       timezone:
         name: Asia/Tehran
 
-    - name: Configure DNS with Shecan nameservers using Netplan
-      block:
-        - name: Check for existing Netplan configuration
-          find:
-            paths: /etc/netplan/
-            patterns: "*.yaml"
-          register: netplan_files
-
-        - name: Get current Netplan configuration
-          slurp:
-            src: "{{ netplan_files.files[0].path }}"
-          register: current_netplan
-          when: netplan_files.files | length > 0
-
-        - name: Create Netplan DNS configuration
-          template:
-            src: netplan.j2
-            dest: /etc/netplan/01-netcfg.yaml
-            backup: yes
-            mode: '0600'
-          notify: 
-            - apply netplan
-            - restart systemd-resolved
-
-        - name: Fallback - Configure systemd-resolved directly (for non-Netplan systems)
-          block:
-            - name: Configure systemd-resolved DNS
-              lineinfile:
-                path: /etc/systemd/resolved.conf
-                regexp: '^#?DNS='
-                line: "DNS={{ (dns_config.primary_servers + dns_config.fallback_servers) | join(' ') }}"
-                backup: yes
-              notify: restart systemd-resolved
-
-            - name: Configure systemd-resolved FallbackDNS
-              lineinfile:
-                path: /etc/systemd/resolved.conf
-                regexp: '^#?FallbackDNS='
-                line: "FallbackDNS={{ dns_config.fallback_servers | join(' ') }}"
-                backup: yes
-              notify: restart systemd-resolved
-          when: netplan_files.files | length == 0
-      when: dns_config.enabled
-
     - name: Install Git
       apt:
         name: git
         state: present
         update_cache: yes
       when: install_git
-
-  handlers:
-    - name: apply netplan
-      command: netplan apply
-
-    - name: restart systemd-resolved
-      systemd:
-        name: systemd-resolved
-        state: restarted
