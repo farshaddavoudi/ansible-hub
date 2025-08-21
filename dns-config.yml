@@ -1,6 +1,6 @@
 ---
 - name: Configure DNS Settings
-  hosts: atalinux_dev_37
+  hosts: atalinux_dev_37                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
   become: yes
 
   vars:
@@ -36,19 +36,31 @@
                 mode: '0600'
               when: not ansible_netplan_exists.stat.exists
 
-            - name: Create DNS servers list
-              set_fact:
-                dns_servers_yaml: |
-                  {% for dns_server in dns_servers %}
-                        - {{ dns_server }}
-                  {% endfor %}
-
-            - name: Update DNS nameservers in Ansible-managed Netplan file
-              replace:
-                path: /etc/netplan/99-ansible-dns.yaml
-                regexp: '(addresses:\s*\n)(\s+- .+\n)+'
-                replace: "addresses:\n{{ dns_servers_yaml }}"
-                backup: yes
+            - name: Update DNS nameservers using Python YAML parser
+              script: |
+                #!/usr/bin/env python3
+                import yaml
+                import sys
+                
+                netplan_file = "/etc/netplan/99-ansible-dns.yaml"
+                dns_servers = {{ dns_servers | to_json }}
+                
+                # Read the existing file
+                with open(netplan_file, 'r') as f:
+                    config = yaml.safe_load(f)
+                
+                # Update DNS servers in all ethernet interfaces
+                if 'network' in config and 'ethernets' in config['network']:
+                    for interface in config['network']['ethernets']:
+                        if 'nameservers' in config['network']['ethernets'][interface]:
+                            config['network']['ethernets'][interface]['nameservers']['addresses'] = dns_servers
+                
+                # Write back the updated config
+                with open(netplan_file, 'w') as f:
+                    yaml.dump(config, f, default_flow_style=False, indent=2)
+              args:
+                executable: /usr/bin/python3
+              become: yes
               notify: 
                 - apply netplan
                 - restart systemd-resolved
