@@ -54,7 +54,7 @@ all:
             arvan_vm3_203:
         sentry_servers:
           hosts:
-            atalinux_dev_37:
+            atalinux_observability_80:
         observability_install_servers:
           hosts:
             atalinux_observability_80:
