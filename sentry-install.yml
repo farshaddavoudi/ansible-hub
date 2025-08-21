@@ -65,19 +65,19 @@
       poll: 10
       ignore_errors: true
 
-    # - name: Replace problematic SMTP image with working alternative
-    #   replace:
-    #     path: "{{ sentry_dir }}/docker-compose.yml"
-    #     regexp: 'registry\.gitlab\.com/egos-tech/smtp.*'
-    #     replace: 'namshi/smtp:latest'
-    #   ignore_errors: true
+    - name: Replace problematic SMTP image with working alternative
+      replace:
+        path: "{{ sentry_dir }}/docker-compose.yml"
+        regexp: 'registry\.gitlab\.com/egos-tech/smtp.*'
+        replace: 'namshi/smtp:latest'
+      ignore_errors: true
 
-    # - name: Replace problematic GitHub Container Registry images with Docker Hub alternatives
-    #   replace:
-    #     path: "{{ sentry_dir }}/docker-compose.yml"
-    #     regexp: 'ghcr\.io/getsentry/snuba:{{ sentry_version }}'
-    #     replace: 'getsentry/snuba:{{ sentry_version }}'
-    #   ignore_errors: true
+    - name: Replace problematic GitHub Container Registry images with Docker Hub alternatives
+      replace:
+        path: "{{ sentry_dir }}/docker-compose.yml"
+        regexp: 'ghcr\.io/getsentry/snuba:{{ sentry_version }}'
+        replace: 'getsentry/snuba:{{ sentry_version }}'
+      ignore_errors: true
 
     # - name: Replace other ghcr.io images if they exist
     #   replace:
