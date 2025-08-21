@@ -21,8 +21,8 @@ docker_service_state: started
 docker_service_enabled: true
 docker_add_repo: false  # Disable Docker's official repository
 docker_packages_state: present
-docker_install_compose_plugin: false  # We'll install it manually
-docker_install_compose: false  # We'll install it manually
+docker_install_compose_plugin: true 
+docker_install_compose: true 
 
 # Install only Docker engine from Ubuntu's repository
 docker_packages:
