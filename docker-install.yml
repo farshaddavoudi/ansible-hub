@@ -103,5 +103,5 @@
           - /var/run/docker.sock:/var/run/docker.sock
         networks:
           - name: "{{ portainer.docker_network_name }}"
-        labels: "{{ portainer.traefik_labels if portainer.enable_traefik_labels else {} }}"
+        labels: "{{ portainer.traefik_labels if portainer.traefik_labels.enabled else {} }}"
         recreate: true
