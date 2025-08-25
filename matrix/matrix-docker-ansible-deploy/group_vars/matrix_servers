@@ -2303,7 +2303,7 @@ matrix_hookshot_appservice_token: "{{ '%s' | format(matrix_homeserver_generic_se
 
 matrix_hookshot_homeserver_token: "{{ '%s' | format(matrix_homeserver_generic_secret_key) | password_hash('sha512', 'hookshot.hs.v2', rounds=655555) | to_uuid }}"
 
-matrix_hookshot_homeserver_address: "{{ matrix_addons_homeserver_client_api_url }}"
+matrix_hookshot_homeserver_address: "{{ matrix_homeserver_container_url }}"
 
 matrix_hookshot_systemd_wanted_services_list: |
   {{
