@@ -5,6 +5,8 @@ hs_token: {{ matrix_hookshot_homeserver_token|to_json }} # ..as can this
 namespaces:
   rooms: []
   users:
+    - regex: "@{{ matrix_hookshot_bot_localpart }}:{{ matrix_domain }}"
+      exclusive: true
 {% if matrix_hookshot_github_enabled %}
     - regex: "@_github_.*:{{ matrix_domain }}"
       exclusive: true
