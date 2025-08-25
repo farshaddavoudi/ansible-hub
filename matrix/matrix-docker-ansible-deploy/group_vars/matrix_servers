@@ -2275,8 +2275,29 @@ matrix_heisenbridge_homeserver_url: "{{ matrix_addons_homeserver_client_api_url 
 #
 ######################################################################
 
-# We don't enable bridges by default.
-matrix_hookshot_enabled: false
+# Enable Hookshot bridge for external service webhooks (like Sentry)
+matrix_hookshot_enabled: true
+
+# Enable generic webhooks for external service integration (Sentry, etc.)
+matrix_hookshot_generic_enabled: true
+
+# HTTP GET support for webhooks (disabled by default for security)
+# Sentry uses POST requests, so this is not needed for Sentry integration
+# Only enable if you have services that require GET requests
+matrix_hookshot_generic_enableHttpGet: false
+
+# Disable services we don't need
+matrix_hookshot_github_enabled: false
+matrix_hookshot_gitlab_enabled: false
+matrix_hookshot_jira_enabled: false
+matrix_hookshot_figma_enabled: false
+
+# Enable provisioning API for easier webhook management
+matrix_hookshot_provisioning_enabled: true
+matrix_hookshot_provisioning_secret: "{{ '%s' | format(matrix_homeserver_generic_secret_key) | password_hash('sha512', 'hookshot.prov', rounds=655555) | to_uuid }}"
+
+# Enable metrics for monitoring (optional)
+matrix_hookshot_bot_stats_enabled: true
 
 matrix_hookshot_docker_image_registry_prefix_upstream: "{{ matrix_container_global_registry_prefix_override if matrix_container_global_registry_prefix_override else matrix_hookshot_docker_image_registry_prefix_upstream_default }}"
 
