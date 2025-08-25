@@ -2299,9 +2299,9 @@ matrix_hookshot_docker_image_registry_prefix_upstream: "{{ matrix_container_glob
 
 matrix_hookshot_container_image_self_build: "{{ matrix_architecture not in ['arm64', 'amd64'] }}"
 
-matrix_hookshot_appservice_token: "{{ '%s' | format(matrix_homeserver_generic_secret_key) | password_hash('sha512', 'hookshot.as.tok.v2', rounds=655555) | to_uuid }}"
+matrix_hookshot_appservice_token: "{{ '%s' | format(matrix_homeserver_generic_secret_key) | password_hash('sha512', 'hookshot.as.v2', rounds=655555) | to_uuid }}"
 
-matrix_hookshot_homeserver_token: "{{ '%s' | format(matrix_homeserver_generic_secret_key) | password_hash('sha512', 'hookshot.hs.tok.v2', rounds=655555) | to_uuid }}"
+matrix_hookshot_homeserver_token: "{{ '%s' | format(matrix_homeserver_generic_secret_key) | password_hash('sha512', 'hookshot.hs.v2', rounds=655555) | to_uuid }}"
 
 matrix_hookshot_homeserver_address: "{{ matrix_addons_homeserver_client_api_url }}"
 
