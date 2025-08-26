@@ -2318,7 +2318,7 @@ matrix_hookshot_container_additional_networks_auto: |
     (
       ([] if matrix_addons_homeserver_container_network == '' else [matrix_addons_homeserver_container_network])
       +
-      ([matrix_homeserver_container_network])
+      ([matrix_homeserver_container_network] if matrix_homeserver_container_network != matrix_hookshot_container_network else [])
       +
       ([valkey_container_network] if valkey_enabled and matrix_hookshot_cache_redis_host == valkey_identifier else [])
       +
