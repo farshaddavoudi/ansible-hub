@@ -801,8 +801,11 @@ matrix_appservice_discord_database_password: "{{ '%s' | format(matrix_homeserver
 #
 ######################################################################
 
-# We don't enable bridges by default.
-matrix_appservice_webhooks_enabled: false
+# We enable matrix-appservice-webhooks as an alternative to Hookshot for webhook functionality
+matrix_appservice_webhooks_enabled: true
+
+# Generate a secure API secret for webhook authentication
+matrix_appservice_webhooks_api_secret: "webhook-secret-{{ matrix_domain | replace('.', '-') }}-2025"
 
 matrix_appservice_webhooks_hostname: "{{ matrix_server_fqn_matrix }}"
 
@@ -2276,7 +2279,7 @@ matrix_heisenbridge_homeserver_url: "{{ matrix_addons_homeserver_client_api_url 
 ######################################################################
 
 # Enable Hookshot bridge for external service webhooks (like Sentry)
-matrix_hookshot_enabled: true
+matrix_hookshot_enabled: false
 
 # Enable generic webhooks for external service integration (Sentry, etc.)
 matrix_hookshot_generic_enabled: true
@@ -6536,5 +6539,21 @@ matrix_livekit_jwt_service_environment_variable_livekit_full_access_homeservers_
 ########################################################################
 #                                                                      #
 # /matrix-livekit-jwt-service                                          #
+#                                                                      #
+########################################################################
+
+########################################################################
+#                                                                      #
+# matrix-synapse configuration extensions                              #
+#                                                                      #
+########################################################################
+
+# Required for matrix-appservice-webhooks on Synapse v1.90+
+matrix_synapse_configuration_extension_yaml: |
+  use_appservice_legacy_authorization: true
+
+########################################################################
+#                                                                      #
+# /matrix-synapse configuration extensions                             #
 #                                                                      #
 ########################################################################
