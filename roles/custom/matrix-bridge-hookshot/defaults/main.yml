@@ -29,7 +29,7 @@ matrix_hookshot_container_additional_networks_auto: []
 matrix_hookshot_container_additional_networks_custom: []
 
 # renovate: datasource=docker depName=halfshot/matrix-hookshot
-matrix_hookshot_version: 7.0.0
+matrix_hookshot_version: 7.1.0
 
 matrix_hookshot_docker_image: "{{ matrix_hookshot_docker_image_registry_prefix }}matrix-org/matrix-hookshot:{{ matrix_hookshot_version }}"
 matrix_hookshot_docker_image_registry_prefix: "{{ 'localhost/' if matrix_hookshot_container_image_self_build else matrix_hookshot_docker_image_registry_prefix_upstream }}"
@@ -181,6 +181,9 @@ matrix_hookshot_generic_urlPrefix: "{{ matrix_hookshot_urlprefix }}{{ matrix_hoo
 matrix_hookshot_generic_userIdPrefix: '_webhooks_'  # noqa var-naming
 matrix_hookshot_generic_allowJsTransformationFunctions: false  # noqa var-naming
 matrix_hookshot_generic_waitForComplete: false  # noqa var-naming
+matrix_hookshot_generic_sendExpiryNotice: false  # noqa var-naming
+matrix_hookshot_generic_requireExpiryTime: false  # noqa var-naming
+matrix_hookshot_generic_maxExpiryTime: "30d"  # noqa var-naming
 
 
 matrix_hookshot_feeds_enabled: true
