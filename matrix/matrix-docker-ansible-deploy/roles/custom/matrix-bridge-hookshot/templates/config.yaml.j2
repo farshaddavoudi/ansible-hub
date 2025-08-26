@@ -138,7 +138,7 @@ permissions: {{ matrix_hookshot_permissions | to_json }}
 listeners:
   # (Optional) HTTP Listener configuration.
   # Bind resource endpoints to ports and addresses.
-  # 'resources' may be any of webhooks, widgets, metrics
+  # 'resources' may be any of webhooks, widgets, metrics, appservice
   #
 {# always enabled since all services need it #}
   - port: {{ matrix_hookshot_webhook_port }}
@@ -157,3 +157,7 @@ listeners:
     resources:
       - widgets
 {% endif %}
+  - port: {{ matrix_hookshot_appservice_port }}
+    bindAddress: 0.0.0.0
+    resources:
+      - appservice
