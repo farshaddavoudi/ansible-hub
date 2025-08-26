@@ -5,8 +5,6 @@ bridge:
   domain: {{ matrix_domain }}
   url: {{ matrix_hookshot_homeserver_address }}
   mediaUrl: {{ matrix_hookshot_homeserver_address }}
-  port: {{ matrix_hookshot_appservice_port }}
-  bindAddress: 0.0.0.0
   registration: /data/registration.yml
 {% if matrix_hookshot_github_enabled %}
 github:
@@ -140,7 +138,6 @@ listeners:
   # Bind resource endpoints to ports and addresses.
   # 'resources' may be any of webhooks, widgets, metrics, appservice
   #
-{# always enabled since all services need it #}
   - port: {{ matrix_hookshot_webhook_port }}
     bindAddress: 0.0.0.0
     resources:
