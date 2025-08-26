@@ -7,6 +7,7 @@ bridge:
   mediaUrl: {{ matrix_hookshot_homeserver_address }}
   port: {{ matrix_hookshot_appservice_port }}
   bindAddress: 0.0.0.0
+  registration: /data/registration.yml
 {% if matrix_hookshot_github_enabled %}
 github:
   # (Optional) Configure this to enable GitHub support
