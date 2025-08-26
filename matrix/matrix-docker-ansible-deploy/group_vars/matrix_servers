@@ -797,15 +797,11 @@ matrix_appservice_discord_database_password: "{{ '%s' | format(matrix_homeserver
 
 ######################################################################
 #
-# matrix-appservice-webhooks
+# matrix-appservice-webhooks (DISABLED - Using Hookshot instead)
 #
 ######################################################################
 
-# We enable matrix-appservice-webhooks as an alternative to Hookshot for webhook functionality
-matrix_appservice_webhooks_enabled: true
-
-# Generate a secure API secret for webhook authentication
-matrix_appservice_webhooks_api_secret: "webhook-secret-{{ matrix_domain | replace('.', '-') }}-2025"
+matrix_appservice_webhooks_enabled: false
 
 matrix_appservice_webhooks_hostname: "{{ matrix_server_fqn_matrix }}"
 
@@ -2278,25 +2274,18 @@ matrix_heisenbridge_homeserver_url: "{{ matrix_addons_homeserver_client_api_url 
 #
 ######################################################################
 
-# Enable Hookshot bridge for external service webhooks (like Sentry)
-matrix_hookshot_enabled: false
+# Hookshot bridge - Standard configuration for webhook integration
+matrix_hookshot_enabled: true
 
 # Enable generic webhooks for external service integration (Sentry, etc.)
 matrix_hookshot_generic_enabled: true
 
-# HTTP GET support for webhooks (disabled by default for security)
-# Sentry uses POST requests, so this is not needed for Sentry integration
-# Only enable if you have services that require GET requests
-matrix_hookshot_generic_enableHttpGet: false
-
-# Disable services we don't need
+# Standard Hookshot configuration - all other services disabled
 matrix_hookshot_github_enabled: false
 matrix_hookshot_gitlab_enabled: false
 matrix_hookshot_jira_enabled: false
 matrix_hookshot_figma_enabled: false
-
-# Enable metrics for monitoring (optional)
-matrix_hookshot_bot_stats_enabled: true
+matrix_hookshot_feeds_enabled: false
 
 matrix_hookshot_docker_image_registry_prefix_upstream: "{{ matrix_container_global_registry_prefix_override if matrix_container_global_registry_prefix_override else matrix_hookshot_docker_image_registry_prefix_upstream_default }}"
 
@@ -6539,21 +6528,5 @@ matrix_livekit_jwt_service_environment_variable_livekit_full_access_homeservers_
 ########################################################################
 #                                                                      #
 # /matrix-livekit-jwt-service                                          #
-#                                                                      #
-########################################################################
-
-########################################################################
-#                                                                      #
-# matrix-synapse configuration extensions                              #
-#                                                                      #
-########################################################################
-
-# Required for matrix-appservice-webhooks on Synapse v1.90+
-matrix_synapse_configuration_extension_yaml: |
-  use_appservice_legacy_authorization: true
-
-########################################################################
-#                                                                      #
-# /matrix-synapse configuration extensions                             #
 #                                                                      #
 ########################################################################
