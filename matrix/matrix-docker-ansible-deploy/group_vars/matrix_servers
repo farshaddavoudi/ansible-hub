@@ -2277,6 +2277,9 @@ matrix_heisenbridge_homeserver_url: "{{ matrix_addons_homeserver_client_api_url 
 # Hookshot bridge - Standard configuration for webhook integration
 matrix_hookshot_enabled: true
 
+# Enable debug logging for troubleshooting
+matrix_hookshot_logging_level: debug
+
 # Enable generic webhooks for external service integration (Sentry, etc.)
 matrix_hookshot_generic_enabled: true
 
