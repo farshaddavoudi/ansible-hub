@@ -93,7 +93,7 @@
       copy:
         content: |
           APT::Get::Assume-Yes "true";
-          APT::Get::force-yes "true";
+          APT::Get::allow-unauthenticated "true";
           DPkg::Options "--force-confdef";
           DPkg::Options "--force-confold";
           DPkg::Options "--force-confnew";

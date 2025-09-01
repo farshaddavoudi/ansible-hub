@@ -23,7 +23,3 @@ use_iranian_mirrors: false
 iranian_mirrors:
   - name: "ArvanCloud"
     url: "http://mirror.arvancloud.ir/ubuntu"
-  - name: "Asis"
-    url: "http://mirror.asis.ai/ubuntu"
-  - name: "Parsis"
-    url: "http://mirror.parsis.com/ubuntu"
