@@ -1,0 +1,12 @@
+# Server-specific identifier
+server_identifier: "192.168.1.37_dev"
+
+# Custom log files for this server (Development server)
+log_files:
+  - "/var/log/nginx/access.log"
+  - "/var/log/nginx/error.log"
+  - "/var/log/apache2/*.log"
+  - "/var/log/syslog"
+  - "/var/log/auth.log"
+  - "/home/*/logs/*.log"
+  - "/var/www/*/logs/*.log"

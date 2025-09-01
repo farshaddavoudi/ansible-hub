@@ -1,0 +1,65 @@
+#################################
+# Docker discovery
+#################################
+discovery.docker "docker_log" {
+  host = "unix:///var/run/docker.sock"
+}
+
+#################################
+# Relabel and metadata mapping
+#################################
+discovery.relabel "container_logs" {
+  targets = discovery.docker.docker_log.targets
+
+  # Map container metadata to labels
+  rule { source_labels = ["__meta_docker_container_name"]; target_label = "container_name" }
+  rule { source_labels = ["__meta_docker_network_ip"]; target_label = "container_network_ip" }
+  rule { source_labels = ["__meta_docker_container_network_mode"]; target_label = "container_network_mode" }
+
+  # Keep container_id as field instead of label
+  rule { source_labels = ["__meta_docker_container_id"]; target_label = "__field_container_id" }
+}
+
+#################################
+# Docker source
+#################################
+loki.source.docker "docker_log_source" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.container_logs.output
+  forward_to = [loki.relabel.docker_normalized.receiver]
+}
+
+#################################
+# Level normalization, fallback, and static labels
+#################################
+loki.relabel "docker_normalized" {
+  forward_to = [loki.write.docker_ata_loki.receiver]
+
+  # Static labels
+  rule { target_label = "source";   replacement = "server" }
+  rule { target_label = "server";   replacement = "{{ server_identifier }}" }
+  rule { target_label = "log_type"; replacement = "docker" }
+
+  # Extract level from log line if present
+  rule { source_labels = ["__line__"]; target_label = "level"; regex = "(?i).*\\blevel=(debug|info|warn|warning|error|fatal|crit|critical)\\b.*"; replacement = "$1" }
+  rule { source_labels = ["__line__"]; target_label = "level"; regex = "(?i)^\\[?(debug|info|notice|warn|warning|error|fatal|crit|critical)\\]?.*"; replacement = "$1" }
+
+  # Normalize variants → standard set
+  rule { source_labels = ["level"]; target_label = "level"; regex = "warn";      replacement = "warning" }
+  rule { source_labels = ["level"]; target_label = "level"; regex = "notice";    replacement = "info" }
+  rule { source_labels = ["level"]; target_label = "level"; regex = "err";       replacement = "error" }
+  rule { source_labels = ["level"]; target_label = "level"; regex = "crit";      replacement = "critical" }
+  rule { source_labels = ["level"]; target_label = "level"; regex = "emerg";     replacement = "fatal" }
+
+  # Fallback: if level is empty, assign "info"
+  rule { source_labels = ["level"]; target_label = "level"; regex = "^$"; replacement = "info" }
+}
+
+#################################
+# Common Loki writer
+#################################
+loki.write "docker_ata_loki" {
+  endpoint {
+    url = "{{ loki_endpoint_url }}"
+  }
+}

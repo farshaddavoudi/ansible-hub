@@ -1,0 +1,17 @@
+# Server-specific identifier
+server_identifier: "192.168.1.80_observability"
+
+# Since this is the Loki server, use localhost (override default)
+loki_endpoint_url: "http://localhost:3100/loki/api/v1/push"
+
+# Custom log files for this server (Observability stack)
+log_files:
+  - "/var/log/nginx/access.log"
+  - "/var/log/nginx/error.log"
+  - "/var/log/syslog"
+  - "/var/log/auth.log"
+  - "/var/log/grafana/*.log"
+  - "/var/log/loki/*.log"
+  - "/var/log/prometheus/*.log"
+  - "/opt/grafana/data/log/*.log"
+  - "/opt/loki/data/log/*.log"

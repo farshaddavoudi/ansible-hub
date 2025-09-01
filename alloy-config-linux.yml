@@ -1,0 +1,131 @@
+# Usage: 
+# ansible-galaxy install -r requirements.yml
+# ansible-playbook alloy-config-linux.yml
+---
+- name: Fix APT issues
+  hosts: alloy_servers
+  become: true
+  roles:
+    - apt-fix
+
+- name: Install and Configure Grafana Alloy
+  hosts: alloy_servers
+  become: true
+
+  tasks:
+    - name: Install required packages for Grafana repository
+      apt:
+        name:
+          - apt-transport-https
+          - software-properties-common
+          - wget
+          - gpg
+        state: present
+
+    - name: Add Grafana GPG key
+      apt_key:
+        url: https://apt.grafana.com/gpg.key
+        state: present
+
+    - name: Add Grafana repository
+      apt_repository:
+        repo: "deb https://apt.grafana.com stable main"
+        state: present
+
+    - name: Install Grafana Alloy
+      apt:
+        name: alloy
+        state: present
+        update_cache: true
+
+    - name: Create Alloy configuration directory
+      file:
+        path: "{{ alloy_config_dir }}"
+        state: directory
+        owner: alloy
+        group: alloy
+        mode: '0755'
+
+    - name: Configure Alloy environment variables
+      template:
+        src: alloy-env.j2
+        dest: /etc/default/alloy
+        owner: root
+        group: root
+        mode: '0644'
+      notify: restart alloy
+
+    - name: Check if Docker is installed
+      command: which docker
+      register: docker_check
+      failed_when: false
+      changed_when: false
+
+    - name: Add alloy user to docker group (if Docker exists)
+      user:
+        name: alloy
+        groups: docker
+        append: true
+      when: docker_check.rc == 0
+      notify: restart alloy
+
+    - name: Create local logs configuration
+      template:
+        src: local.alloy.j2
+        dest: "{{ alloy_config_dir }}/local.alloy"
+        owner: alloy
+        group: alloy
+        mode: '0644'
+      notify: restart alloy
+
+    - name: Create journal logs configuration
+      template:
+        src: journal.alloy.j2
+        dest: "{{ alloy_config_dir }}/journal.alloy"
+        owner: alloy
+        group: alloy
+        mode: '0644'
+      notify: restart alloy
+
+    - name: Create Docker logs configuration (if Docker exists)
+      template:
+        src: docker.alloy.j2
+        dest: "{{ alloy_config_dir }}/docker.alloy"
+        owner: alloy
+        group: alloy
+        mode: '0644'
+      when: docker_check.rc == 0
+      notify: restart alloy
+
+    - name: Enable and start Alloy service
+      systemd:
+        name: alloy
+        state: started
+        enabled: true
+        daemon_reload: true
+
+  handlers:
+    - name: restart alloy
+      systemd:
+        name: alloy
+        state: restarted
+
+  post_tasks:
+    - name: Wait for Alloy to start
+      wait_for:
+        port: "{{ alloy_ui_port }}"
+        host: "0.0.0.0"
+        timeout: 60
+
+    - name: Verify Alloy service status
+      systemd:
+        name: alloy
+      register: alloy_status
+
+    - name: Display Alloy status
+      debug:
+        msg: "Alloy service is {{ alloy_status.status.ActiveState }}"
+
+    - name: Display Alloy UI URL
+      debug:
+        msg: "Alloy UI available at: http://{{ ansible_default_ipv4.address }}:{{ alloy_ui_port }}"

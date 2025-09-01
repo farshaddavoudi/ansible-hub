@@ -1,0 +1,148 @@
+#################################
+# System logs
+#################################
+loki.relabel "journal_system" {
+  # Map systemd unit to service label
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "systemd_service"
+  }
+
+  # Keep only system-related services
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    action        = "keep"
+    regex         = "systemd.*|dbus.service|polkit.*"
+  }
+
+  # Static labels
+  rule { target_label = "source";       replacement = "server" }
+  rule { target_label = "server";       replacement = "{{ server_identifier }}" }
+  rule { target_label = "service_name"; replacement = "{{ server_identifier }}" }
+  rule { target_label = "log_type";     replacement = "system" }
+
+  # Drop noisy defaults
+  rule { action = "labeldrop"; regex = "job" }
+
+  # Priority → standard level mapping
+  rule { source_labels = ["__journal__priority"]; regex = "7"; target_label = "level"; replacement = "debug" }
+  rule { source_labels = ["__journal__priority"]; regex = "6|5"; target_label = "level"; replacement = "info" }
+  rule { source_labels = ["__journal__priority"]; regex = "4"; target_label = "level"; replacement = "warning" }
+  rule { source_labels = ["__journal__priority"]; regex = "3"; target_label = "level"; replacement = "error" }
+  rule { source_labels = ["__journal__priority"]; regex = "2"; target_label = "level"; replacement = "critical" }
+  rule { source_labels = ["__journal__priority"]; regex = "1|0"; target_label = "level"; replacement = "fatal" }
+
+  # Parse level from message text if present
+  rule { source_labels = ["__journal__message"]; target_label = "level"; regex = "(?i).*\\blevel=(debug|info|warn|warning|error|fatal|notice|crit|critical)\\b.*"; replacement = "$1" }
+
+  # Normalize variants → standard set
+  rule { source_labels = ["level"]; target_label = "level"; regex = "warn";      replacement = "warning" }
+  rule { source_labels = ["level"]; target_label = "level"; regex = "notice";    replacement = "info" }
+  rule { source_labels = ["level"]; target_label = "level"; regex = "err";       replacement = "error" }
+  rule { source_labels = ["level"]; target_label = "level"; regex = "crit";      replacement = "critical" }
+  rule { source_labels = ["level"]; target_label = "level"; regex = "emerg";     replacement = "fatal" }
+}
+
+loki.source.journal "journal_system" {
+  forward_to    = [loki.write.journal.receiver]
+  relabel_rules = loki.relabel.journal_system.rules
+}
+
+#################################
+# Network logs
+#################################
+loki.relabel "journal_network" {
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "systemd_service"
+  }
+
+  # Keep only network-related services
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    action        = "keep"
+    regex         = "sshd.service|NetworkManager.*|systemd-networkd.*|firewalld.*"
+  }
+
+  # Static labels
+  rule { target_label = "source";       replacement = "server" }
+  rule { target_label = "server";       replacement = "{{ server_identifier }}" }
+  rule { target_label = "service_name"; replacement = "{{ server_identifier }}" }
+  rule { target_label = "log_type";     replacement = "network" }
+
+  rule { action = "labeldrop"; regex = "job" }
+
+  # Apply same level normalization
+  rule { source_labels = ["__journal__priority"]; regex = "7"; target_label = "level"; replacement = "debug" }
+  rule { source_labels = ["__journal__priority"]; regex = "6|5"; target_label = "level"; replacement = "info" }
+  rule { source_labels = ["__journal__priority"]; regex = "4"; target_label = "level"; replacement = "warning" }
+  rule { source_labels = ["__journal__priority"]; regex = "3"; target_label = "level"; replacement = "error" }
+  rule { source_labels = ["__journal__priority"]; regex = "2"; target_label = "level"; replacement = "critical" }
+  rule { source_labels = ["__journal__priority"]; regex = "1|0"; target_label = "level"; replacement = "fatal" }
+
+  rule { source_labels = ["__journal__message"]; target_label = "level"; regex = "(?i).*\\blevel=(debug|info|warn|warning|error|fatal|notice|crit|critical)\\b.*"; replacement = "$1" }
+  rule { source_labels = ["level"]; target_label = "level"; regex = "warn";      replacement = "warning" }
+  rule { source_labels = ["level"]; target_label = "level"; regex = "notice";    replacement = "info" }
+  rule { source_labels = ["level"]; target_label = "level"; regex = "err";       replacement = "error" }
+  rule { source_labels = ["level"]; target_label = "level"; regex = "crit";      replacement = "critical" }
+  rule { source_labels = ["level"]; target_label = "level"; regex = "emerg";     replacement = "fatal" }
+}
+
+loki.source.journal "journal_network" {
+  forward_to    = [loki.write.journal.receiver]
+  relabel_rules = loki.relabel.journal_network.rules
+}
+
+#################################
+# Application logs (everything else)
+#################################
+loki.relabel "journal_app" {
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "systemd_service"
+  }
+
+  # Drop known system and network services → everything else is app
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    action        = "drop"
+    regex         = "systemd.*|dbus.service|polkit.*|sshd.service|NetworkManager.*|systemd-networkd.*|firewalld.*"
+  }
+
+  # Static labels
+  rule { target_label = "source";       replacement = "server" }
+  rule { target_label = "server";       replacement = "{{ server_identifier }}" }
+  rule { target_label = "service_name"; replacement = "{{ server_identifier }}" }
+  rule { target_label = "log_type";     replacement = "app" }
+
+  rule { action = "labeldrop"; regex = "job" }
+
+  # Apply same level normalization
+  rule { source_labels = ["__journal__priority"]; regex = "7"; target_label = "level"; replacement = "debug" }
+  rule { source_labels = ["__journal__priority"]; regex = "6|5"; target_label = "level"; replacement = "info" }
+  rule { source_labels = ["__journal__priority"]; regex = "4"; target_label = "level"; replacement = "warning" }
+  rule { source_labels = ["__journal__priority"]; regex = "3"; target_label = "level"; replacement = "error" }
+  rule { source_labels = ["__journal__priority"]; regex = "2"; target_label = "level"; replacement = "critical" }
+  rule { source_labels = ["__journal__priority"]; regex = "1|0"; target_label = "level"; replacement = "fatal" }
+
+  rule { source_labels = ["__journal__message"]; target_label = "level"; regex = "(?i).*\\blevel=(debug|info|warn|warning|error|fatal|notice|crit|critical)\\b.*"; replacement = "$1" }
+  rule { source_labels = ["level"]; target_label = "level"; regex = "warn";      replacement = "warning" }
+  rule { source_labels = ["level"]; target_label = "level"; regex = "notice";    replacement = "info" }
+  rule { source_labels = ["level"]; target_label = "level"; regex = "err";       replacement = "error" }
+  rule { source_labels = ["level"]; target_label = "level"; regex = "crit";      replacement = "critical" }
+  rule { source_labels = ["level"]; target_label = "level"; regex = "emerg";     replacement = "fatal" }
+}
+
+loki.source.journal "journal_app" {
+  forward_to    = [loki.write.journal.receiver]
+  relabel_rules = loki.relabel.journal_app.rules
+}
+
+#################################
+# Common Loki writer
+#################################
+loki.write "journal" {
+  endpoint {
+    url = "{{ loki_endpoint_url }}"
+  }
+}

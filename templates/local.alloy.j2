@@ -1,0 +1,58 @@
+local.file_match "local_log_source_file_match" {
+  path_targets = [
+{% for log_file in (log_files | default(default_log_files)) %}
+    {"__address__" = "localhost", "__path__" = "{{ log_file }}"},
+{% endfor %}
+  ]
+  sync_period = "10s"
+}
+
+loki.source.file "local_log_sources" {
+  targets      = local.file_match.local_log_source_file_match.targets
+  tail_from_end = false
+  forward_to   = [loki.relabel.local_adjust_labels.receiver]
+}
+
+loki.relabel "local_adjust_labels" {
+  forward_to = [loki.write.local_ata_loki.receiver]
+
+  rule {
+    target_label = "source"
+    replacement = "server"
+  }
+  
+  rule {
+    target_label = "server"
+    replacement = "{{ server_identifier }}"
+  }
+
+  rule {
+    target_label = "service_name"
+    replacement = "{{ server_identifier }}"
+  }
+
+  rule {
+    action        = "replace"
+    source_labels = ["__path__"]
+    target_label  = "filename"
+  }
+
+  rule {
+    action        = "replace"
+    source_labels = ["__line__"]
+    regex         = ".*?\\[(emerg|alert|crit|error|warn|notice|info|debug)\\].*"
+    target_label  = "level"
+    replacement   = "$1"
+  }
+
+  rule {
+    action        = "labeldrop"
+    regex         = "job"
+  }
+}
+
+loki.write "local_ata_loki" {
+  endpoint {
+    url = "{{ loki_endpoint_url }}"
+  }
+}

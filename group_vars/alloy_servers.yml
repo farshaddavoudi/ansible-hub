@@ -1,0 +1,20 @@
+# Alloy Configuration Directory
+alloy_config_dir: "/opt/alloy"
+
+# Alloy UI Port (optional, can be customized)
+alloy_ui_port: "12345"
+
+# Default Loki Endpoint (can be overridden in host_vars for special cases like localhost)
+loki_endpoint_url: "http://192.168.1.80:3100/loki/api/v1/push"
+
+# Default log file paths (can be overridden in host_vars)
+# Note: You can use patterns like "/var/**/*.log" to gather all logs
+# These paths are suggestions and can be customized per server in host_vars
+default_log_files:
+  - "/var/log/nginx/access.log"
+  - "/var/log/nginx/error.log"
+  - "/var/log/syslog"
+  - "/var/log/auth.log"
+
+# Restart on upgrade setting
+alloy_restart_on_upgrade: true
