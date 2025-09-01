@@ -15,3 +15,15 @@ apt_fix_force_apt_get: true
 
 # Whether to create backup of apt configuration
 apt_fix_backup_config: true
+
+# Iranian mirror configuration
+use_iranian_mirrors: false
+
+# Available Iranian mirrors (in order of preference)
+iranian_mirrors:
+  - name: "ArvanCloud"
+    url: "http://mirror.arvancloud.ir/ubuntu"
+  - name: "Asis"
+    url: "http://mirror.asis.ai/ubuntu"
+  - name: "Parsis"
+    url: "http://mirror.parsis.com/ubuntu"

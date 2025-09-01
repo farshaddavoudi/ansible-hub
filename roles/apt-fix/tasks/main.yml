@@ -17,6 +17,40 @@
   meta: end_play
   when: apt_check.rc != 0
 
+- name: Setup Iranian mirror repositories (if enabled)
+  block:
+    - name: Backup original sources.list
+      copy:
+        src: /etc/apt/sources.list
+        dest: /etc/apt/sources.list.backup
+        remote_src: true
+      ignore_errors: true
+
+    - name: Get Ubuntu codename
+      command: lsb_release -cs
+      register: ubuntu_codename
+      changed_when: false
+
+    - name: Configure Iranian mirror repositories
+      template:
+        src: sources.list.j2
+        dest: /etc/apt/sources.list
+        owner: root
+        group: root
+        mode: '0644'
+        backup: "{{ apt_fix_backup_config }}"
+
+    - name: Update apt cache with Iranian mirrors
+      shell: |
+        export DEBIAN_FRONTEND=noninteractive
+        timeout 120 apt-get update --fix-missing -y
+      register: iranian_mirror_update
+      retries: 3
+      delay: 5
+      failed_when: false
+
+  when: use_iranian_mirrors | bool
+
 - name: Fix apt package manager issues
   block:
     - name: Wait for automatic system updates to complete

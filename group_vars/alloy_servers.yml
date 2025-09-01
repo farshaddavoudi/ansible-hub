@@ -18,3 +18,6 @@ default_log_files:
 
 # Restart on upgrade setting
 alloy_restart_on_upgrade: true
+
+# Use Iranian mirrors for better connectivity in Iran
+use_iranian_mirrors: true
