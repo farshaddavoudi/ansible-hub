@@ -25,12 +25,12 @@ all:
     
     # ATA Windows servers
     win_webserver_107:
-      ansible_host: #.#.#.107
+      ansible_host: 192.168.1.107
       ansible_connection: winrm
       ansible_user: administrator
       ansible_password: password # Setup passwordless connection
     win_azuredevops_119:
-      ansible_host: #.#.#.119
+      ansible_host: 192.168.1.119
       ansible_connection: winrm
       ansible_user: administrator
       ansible_password: password # Setup passwordless connection
@@ -64,13 +64,19 @@ all:
           hosts:
             linux_minio_144:
 
-        # Alloy group
-        alloy_servers:
+        # Alloy Linux group
+        alloy_linux_servers:
           hosts:
             linux_minio_144:
             linux_haproxy_180:
             linux_observability_80:
             linux_dev_37:
+        
+        # Alloy Windows group
+        alloy_win_servers:
+          hosts:
+            win_azuredevops_119:
+            #win_webserver_107:
 
         # Kubernetes group
         k8s_servers:

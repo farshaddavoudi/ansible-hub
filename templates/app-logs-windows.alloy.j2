@@ -1,0 +1,90 @@
+//
+// Application Log Files
+//
+local.file_match "app_log_source_file_match" {
+  path_targets = [
+{% for log_file in (app_log_files | default(default_app_log_files)) %}
+    {"__address__" = "localhost", "__path__" = "{{ log_file }}"},
+{% endfor %}
+  ]
+  sync_period = "10s"
+}
+
+loki.source.file "app_log_sources" {
+  targets      = local.file_match.app_log_source_file_match.targets
+  tail_from_end = false
+  forward_to   = [loki.relabel.app_adjust_labels.receiver]
+}
+
+loki.relabel "app_adjust_labels" {
+  forward_to = [loki.write.app_loki.receiver]
+
+  rule {
+    target_label = "source"
+    replacement = "server"
+  }
+  
+  rule {
+    target_label = "server"
+    replacement = "{{ server_identifier }}"
+  }
+
+  rule {
+    target_label = "service_name"
+    replacement = "{{ server_identifier }}"
+  }
+
+  rule {
+    target_label = "category"
+    replacement = "application"
+  }
+
+  rule {
+    action        = "replace"
+    source_labels = ["__path__"]
+    target_label  = "subcategory"
+  }
+
+  // Extract level from log line if present
+  rule {
+    action        = "replace"
+    source_labels = ["__line__"]
+    regex         = "(?i).*\\b(debug|info|information|warn|warning|error|fatal|critical)\\b.*"
+    target_label  = "level"
+    replacement   = "$1"
+  }
+
+  // Normalize level variants
+  rule {
+    source_labels = ["level"]
+    target_label = "level"
+    regex = "information"
+    replacement = "info"
+  }
+  
+  rule {
+    source_labels = ["level"]
+    target_label = "level"
+    regex = "warn"
+    replacement = "warning"
+  }
+
+  // Default level if none found
+  rule {
+    source_labels = ["level"]
+    target_label = "level"
+    regex = "^$"
+    replacement = "info"
+  }
+
+  rule {
+    action        = "labeldrop"
+    regex         = "job"
+  }
+}
+
+loki.write "app_loki" {
+  endpoint {
+    url = "{{ loki_endpoint_url }}"
+  }
+}

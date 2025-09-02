@@ -1,0 +1,105 @@
+// Just for reference
+
+discovery.kubernetes "pods" {
+  role = "pod"
+}
+
+discovery.relabel "pod_logs" {
+  targets = discovery.kubernetes.pods.targets
+
+  // Static source label
+  rule {
+    target_label  = "source"
+    replacement   = "k8s"
+  }
+
+  // Keep namespace as label
+  rule {
+    source_labels = ["__meta_kubernetes_namespace"]
+    target_label  = "k8s_namespace"
+  }
+
+  // Category = container name
+  rule {
+    source_labels = ["__meta_kubernetes_pod_container_name"]
+    target_label  = "category"
+  }
+
+  // pod name → keep as field (not label)
+  rule {
+    source_labels = ["__meta_kubernetes_pod_name"]
+    target_label  = "__field_pod"
+  }
+
+  // container id → keep as field
+  rule {
+    source_labels = ["__meta_kubernetes_pod_container_id"]
+    target_label  = "__field_container_id"
+  }
+
+  // node name → keep as field
+  rule {
+    source_labels = ["__meta_kubernetes_node_name"]
+    target_label  = "__field_node"
+  }
+
+  // Build log file path
+  rule {
+    source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
+    separator     = "/"
+    action        = "replace"
+    replacement   = "/var/log/pods/*$1/*.log"
+    target_label  = "__path__"
+  }
+
+  // Extract container runtime type as field
+  rule {
+    action        = "replace"
+    source_labels = ["__meta_kubernetes_pod_container_id"]
+    regex         = "^(\\w+):\\/\\/.+$"
+    replacement   = "$1"
+    target_label  = "__field_container_runtime"
+  }
+}
+
+local.file_match "pod_logs" {
+  path_targets = discovery.relabel.pod_logs.output
+}
+
+loki.source.file "pod_logs" {
+  targets    = local.file_match.pod_logs.targets
+  forward_to = [loki.process.pod_logs.receiver]
+}
+
+loki.process "pod_logs" {
+  // Example: regex extraction for HTTP methods
+  stage.match {
+    selector = "{namespace=\"myapp\"}"
+    stage.regex {
+      expression = "(?P<method>GET|PUT|POST|DELETE|PATCH)"
+    }
+    stage.labels {
+      values = {
+        method = "",
+      }
+    }
+  }
+
+  // Runtime-specific parsing
+  stage.match {
+    selector = "{__field_container_runtime=\"containerd\"}"
+    stage.cri {}
+  }
+  stage.match {
+    selector = "{__field_container_runtime=\"docker\"}"
+    stage.docker {}
+  }
+
+  forward_to = [loki.write.k8s_loki.receiver]
+}
+
+loki.write "k8s_loki" {
+  endpoint {
+    url = "http://192.168.1.80:3100/loki/api/v1/push"
+  }
+}

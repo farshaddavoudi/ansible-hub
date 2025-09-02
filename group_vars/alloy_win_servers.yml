@@ -1,0 +1,31 @@
+# Alloy Configuration Directory for Windows
+alloy_config_dir: "C:\\Program Files\\Grafana Agent\\config"
+
+# Alloy UI Port (optional, can be customized)
+alloy_ui_port: "12345"
+
+# Loki Endpoint (same for all servers in this group)
+loki_endpoint_url: "http://192.168.1.80:3100/loki/api/v1/push"
+
+# Windows Event Log Channels to monitor
+windows_event_channels:
+  - name: "Application"
+    subcategory: "application"
+  - name: "System" 
+    subcategory: "system"
+  - name: "Security"
+    subcategory: "security"
+
+# IIS Log paths (if IIS is installed)
+iis_log_paths:
+  - "C:\\inetpub\\logs\\LogFiles\\W3SVC1\\*.log"
+  - "C:\\Windows\\System32\\LogFiles\\HTTPERR\\*.log"
+
+# Application log file paths (can be overridden in host_vars)
+default_app_log_files:
+  - "C:\\Windows\\Logs\\*.log"
+  - "C:\\ProgramData\\*\\Logs\\*.log"
+  - "C:\\Logs\\*.log"
+
+# Service restart settings
+alloy_restart_on_upgrade: true

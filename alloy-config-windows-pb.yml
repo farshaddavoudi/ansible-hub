@@ -1,0 +1,153 @@
+# Usage: 
+# ansible-galaxy install -r requirements.yml
+# ansible-playbook alloy-config-windows-pb.yml
+---
+- name: Install and Configure Grafana Alloy on Windows
+  hosts: alloy_win_servers
+  become: false
+  become_method: runas
+
+  tasks:
+    - name: Check if Alloy is already installed
+      win_shell: |
+        try {
+          $version = & "C:\Program Files\Grafana Agent\alloy.exe" --version
+          Write-Output $version
+        } catch {
+          Write-Output "Not installed"
+          exit 1
+        }
+      register: alloy_check
+      failed_when: false
+      changed_when: false
+
+    - name: Install Grafana Alloy (if not already installed)
+      block:
+        - name: Create temporary directory for installer
+          win_tempfile:
+            state: directory
+            suffix: alloy_install
+          register: temp_dir
+
+        - name: Download Grafana Alloy Windows installer
+          win_get_url:
+            url: "https://github.com/grafana/alloy/releases/latest/download/alloy-installer.exe"
+            dest: "{{ temp_dir.path }}\\alloy-installer.exe"
+            force: true
+
+        - name: Install Grafana Alloy
+          win_package:
+            path: "{{ temp_dir.path }}\\alloy-installer.exe"
+            arguments: '/S'
+            state: present
+            wait_for_children: true
+
+        - name: Clean up installer
+          win_file:
+            path: "{{ temp_dir.path }}"
+            state: absent
+
+      when: alloy_check.rc != 0
+
+    - name: Display Alloy version (if already installed)
+      debug:
+        msg: "Alloy is already installed: {{ alloy_check.stdout }}"
+      when: alloy_check.rc == 0
+
+    - name: Create Alloy configuration directory
+      win_file:
+        path: "{{ alloy_config_dir }}"
+        state: directory
+
+    - name: Stop Alloy service before configuration
+      win_service:
+        name: "Grafana Agent"
+        state: stopped
+      ignore_errors: true
+
+    - name: Configure Alloy environment variables
+      win_template:
+        src: alloy-env-windows.j2
+        dest: "C:\\Program Files\\Grafana Agent\\alloy-config.yml"
+      notify: restart alloy windows
+
+    - name: Create Windows Event Log configuration
+      win_template:
+        src: windows-events.alloy.j2
+        dest: "{{ alloy_config_dir }}\\windows-events.alloy"
+      notify: restart alloy windows
+
+    - name: Create IIS logs configuration (if IIS is installed)
+      block:
+        - name: Check if IIS is installed
+          win_feature:
+            name: "IIS-WebServerRole"
+            state: present
+          register: iis_check
+          check_mode: true
+
+        - name: Create IIS logs configuration file
+          win_template:
+            src: iis-logs.alloy.j2
+            dest: "{{ alloy_config_dir }}\\iis-logs.alloy"
+          when: iis_check.success is defined and iis_check.success
+          notify: restart alloy windows
+
+    - name: Create application logs configuration
+      win_template:
+        src: app-logs-windows.alloy.j2
+        dest: "{{ alloy_config_dir }}\\app-logs.alloy"
+      notify: restart alloy windows
+
+    - name: Create Docker logs configuration (if Docker exists)
+      block:
+        - name: Check if Docker is installed
+          win_shell: |
+            try {
+              docker --version
+              exit 0
+            } catch {
+              exit 1
+            }
+          register: docker_check
+          failed_when: false
+          changed_when: false
+
+        - name: Create Docker logs configuration file
+          win_template:
+            src: docker-windows.alloy.j2
+            dest: "{{ alloy_config_dir }}\\docker.alloy"
+          when: docker_check.rc == 0
+          notify: restart alloy windows
+
+    - name: Update Alloy service configuration
+      win_service:
+        name: "Grafana Agent"
+        start_mode: auto
+        state: started
+
+  handlers:
+    - name: restart alloy windows
+      win_service:
+        name: "Grafana Agent"
+        state: restarted
+
+  post_tasks:
+    - name: Wait for Alloy to start
+      win_wait_for:
+        port: "{{ alloy_ui_port }}"
+        host: "127.0.0.1"
+        timeout: 60
+
+    - name: Verify Alloy service status
+      win_service:
+        name: "Grafana Agent"
+      register: alloy_status
+
+    - name: Display Alloy status
+      debug:
+        msg: "Alloy service is {{ alloy_status.state }}"
+
+    - name: Display Alloy UI URL
+      debug:
+        msg: "Alloy UI available at: http://{{ ansible_default_ipv4.address }}:{{ alloy_ui_port }}"

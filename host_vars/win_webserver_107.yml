@@ -1,0 +1,21 @@
+# Server-specific identifier
+server_identifier: "192.168.1.107_webserver"
+
+# Loki endpoint URL
+loki_endpoint_url: "http://192.168.1.80:3100/loki/api/v1/push"
+
+# Custom application log files for this server
+app_log_files:
+  - "C:\\inetpub\\logs\\LogFiles\\W3SVC1\\*.log"
+  - "C:\\Windows\\System32\\LogFiles\\HTTPERR\\*.log"
+  - "C:\\Windows\\Logs\\*.log"
+  - "C:\\Program Files\\*\\Logs\\*.log"
+
+# Windows Event Log channels
+windows_event_channels:
+  - name: "Application"
+    subcategory: "application"
+  - name: "System"
+    subcategory: "system"
+  - name: "Security"
+    subcategory: "security"
