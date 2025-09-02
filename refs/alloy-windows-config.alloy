@@ -1,0 +1,190 @@
+//
+// Windows: Event Logs + App Files → Loki (Alloy v1.10)
+//
+
+// ----------------------------
+// Windows Event Logs (Loki)
+// ----------------------------
+
+// Common relabel: add static labels + normalize level if present in text
+loki.relabel "windows_event_common" {
+  forward_to = [loki.write.windows_events.receiver]
+
+  // Static labels
+  rule {
+    target_label = "source"
+    replacement  = "server"
+  }
+  rule {
+    target_label = "__field_host"
+    replacement  = "192.168.1.119_win_devops"
+  }
+  rule {
+    target_label = "service_name"
+    replacement  = "192.168.1.119_win_devops"
+  }
+  rule {
+    target_label = "category"
+    replacement  = "windows_event"
+  }
+
+  // Optional: derive level from line if text contains a common keyword
+  rule {
+    action        = "replace"
+    source_labels = ["__line__"]
+    // capture: debug|info|information|warn|warning|error|fatal|critical
+    regex         = "(?i).*\\b(debug|info|information|warn|warning|error|fatal|critical)\\b.*"
+    target_label  = "level"
+    replacement   = "$1"
+  }
+  // Normalize synonyms
+  rule {
+    source_labels = ["level"]
+    target_label  = "level"
+    regex         = "(?i)information"
+    replacement   = "info"
+  }
+  rule {
+    source_labels = ["level"]
+    target_label  = "level"
+    regex         = "(?i)warn"
+    replacement   = "warning"
+  }
+}
+
+// Application
+loki.source.windowsevent "application" {
+  eventlog_name = "Application"
+  // You can also add per-source labels here if desired:
+  labels = {
+    subcategory = "application",
+    log_type    = "event_log",
+  }
+  forward_to = [loki.relabel.windows_event_common.receiver]
+}
+
+// System
+loki.source.windowsevent "system" {
+  eventlog_name = "System"
+  labels = {
+    subcategory = "system",
+    log_type    = "event_log",
+  }
+  forward_to = [loki.relabel.windows_event_common.receiver]
+}
+
+// Security
+loki.source.windowsevent "security" {
+  eventlog_name = "Security"
+  labels = {
+    subcategory = "security",
+    log_type    = "event_log",
+  }
+  forward_to = [loki.relabel.windows_event_common.receiver]
+}
+
+// Setup
+loki.source.windowsevent "setup" {
+  eventlog_name = "Setup"
+  labels = {
+    subcategory = "setup",
+    log_type    = "event_log",
+  }
+  forward_to = [loki.relabel.windows_event_common.receiver]
+}
+
+// Write Windows Event Logs
+loki.write "windows_events" {
+  endpoint {
+    url = "http://192.168.1.80:3100/loki/api/v1/push"
+  }
+}
+
+// ----------------------------
+// Windows: Application Log Files
+// ----------------------------
+
+local.file_match "app_log_source_file_match" {
+  path_targets = [
+    { "__address__" = "localhost", "__path__" = "C:\\Program Files\\Azure DevOps Server\\*\\Logs\\*.log" },
+    { "__address__" = "localhost", "__path__" = "C:\\ProgramData\\Azure DevOps\\Logs\\*.log" },
+    { "__address__" = "localhost", "__path__" = "C:\\Windows\\Logs\\*.log" },
+    { "__address__" = "localhost", "__path__" = "C:\\inetpub\\logs\\LogFiles\\W3SVC1\\*.log" },
+  ]
+  sync_period = "10s"
+}
+
+loki.source.file "app_log_sources" {
+  targets       = local.file_match.app_log_source_file_match.targets
+  tail_from_end = false
+  forward_to    = [loki.relabel.app_adjust_labels.receiver]
+}
+
+loki.relabel "app_adjust_labels" {
+  forward_to = [loki.write.app_loki.receiver]
+
+  // Static labels
+  rule {
+    target_label = "source"
+    replacement  = "server"
+  }
+  rule {
+    target_label = "server"
+    replacement  = "192.168.1.119_win_devops"
+  }
+  rule {
+    target_label = "service_name"
+    replacement  = "192.168.1.119_win_devops"
+  }
+  rule {
+    target_label = "category"
+    replacement  = "application"
+  }
+
+  // Derive subcategory from path (folder/file hints)
+  rule {
+    action        = "replace"
+    source_labels = ["__path__"]
+    target_label  = "subcategory"
+  }
+
+  // Extract & normalize level from line
+  rule {
+    action        = "replace"
+    source_labels = ["__line__"]
+    regex         = "(?i).*\\b(debug|info|information|warn|warning|error|fatal|critical)\\b.*"
+    target_label  = "level"
+    replacement   = "$1"
+  }
+  rule {
+    source_labels = ["level"]
+    target_label  = "level"
+    regex         = "(?i)information"
+    replacement   = "info"
+  }
+  rule {
+    source_labels = ["level"]
+    target_label  = "level"
+    regex         = "(?i)warn"
+    replacement   = "warning"
+  }
+  rule {
+    source_labels = ["level"]
+    target_label  = "level"
+    regex         = "^$"
+    replacement   = "info"
+  }
+
+  // Tidy up
+  rule {
+    action = "labeldrop"
+    regex  = "job"
+  }
+}
+
+// Separate writer for app files (same Loki endpoint)
+loki.write "app_loki" {
+  endpoint {
+    url = "http://192.168.1.80:3100/loki/api/v1/push"
+  }
+}

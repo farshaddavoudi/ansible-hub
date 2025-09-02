@@ -1,5 +1,3 @@
-// Just for reference
-
 discovery.kubernetes "pods" {
   role = "pod"
 }
@@ -13,16 +11,28 @@ discovery.relabel "pod_logs" {
     replacement   = "k8s"
   }
 
-  // Keep namespace as label
+  // service_name as label
   rule {
     source_labels = ["__meta_kubernetes_namespace"]
-    target_label  = "k8s_namespace"
+    target_label  = "service_name"
   }
 
-  // Category = container name
+  // namespace as field
+  rule {
+    source_labels = ["__meta_kubernetes_namespace"]
+    target_label  = "__field_namespace"
+  }
+
+  // Category = container name as label
   rule {
     source_labels = ["__meta_kubernetes_pod_container_name"]
     target_label  = "category"
+  }
+
+  // container name as field
+  rule {
+    source_labels = ["__meta_kubernetes_pod_container_name"]
+    target_label  = "__field_container_name"
   }
 
   // pod name → keep as field (not label)
@@ -93,6 +103,49 @@ loki.process "pod_logs" {
   stage.match {
     selector = "{__field_container_runtime=\"docker\"}"
     stage.docker {}
+  }
+
+  // 🔹 Multiline parsing for .NET exceptions
+  stage.multiline {
+    firstline = "^(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}|Unhandled exception|fail:|warn:|info:|crit:)"
+    max_wait_time = "3s"
+  }
+
+  // 🔹 Extract raw log level (any synonym)
+  stage.regex {
+    expression = "(?i)(?P<raw_level>info|warn|warning|error|err|fail|critical|crit|fatal)"
+  }
+
+  // 🔹 Normalize log levels into 4 canonical values
+  stage.replace {
+    source     = "raw_level"
+    expression = "(?i)warn(ing)?"
+    replace    = "warning"
+  }
+
+  stage.replace {
+    source     = "raw_level"
+    expression = "(?i)(err(or)?|fail)"
+    replace    = "error"
+  }
+
+  stage.replace {
+    source     = "raw_level"
+    expression = "(?i)(crit(ical)?|fatal)"
+    replace    = "critical"
+  }
+
+  stage.replace {
+    source     = "raw_level"
+    expression = "(?i)info"
+    replace    = "info"
+  }
+
+  // Attach normalized level as label
+  stage.labels {
+    values = {
+      level = "",
+    }
   }
 
   forward_to = [loki.write.k8s_loki.receiver]
