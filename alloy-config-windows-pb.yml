@@ -81,9 +81,8 @@
         state: directory
 
     - name: Stop Alloy service before configuration
-      win_service:
-        name: "Alloy"
-        state: stopped
+      win_shell: |
+        sc.exe stop Alloy
       ignore_errors: true
 
     - name: Configure Alloy environment variables
@@ -98,22 +97,22 @@
         dest: "{{ alloy_config_dir }}\\config.alloy"
       notify: restart alloy windows
 
-    - name: Configure Alloy service to use config file
+    - name: Create Alloy service
       win_shell: |
-        sc.exe config Alloy binPath= "C:\Program Files\Alloy\alloy.exe run {{ alloy_config_dir }}\config.alloy --server.http.listen-addr=0.0.0.0:{{ alloy_ui_port }}"
-      notify: restart alloy windows
+        sc.exe create Alloy binPath= "C:\Program Files\Alloy\alloy.exe run {{ alloy_config_dir }}\config.alloy --server.http.listen-addr=0.0.0.0:{{ alloy_ui_port }}" start= auto
+      ignore_errors: true
 
-    - name: Update Alloy service configuration
-      win_service:
-        name: "Alloy"
-        start_mode: auto
-        state: started
+    - name: Start Alloy service
+      win_shell: |
+        sc.exe start Alloy
+      notify: restart alloy windows
 
   handlers:
     - name: restart alloy windows
-      win_service:
-        name: "Alloy"
-        state: restarted
+      win_shell: |
+        sc.exe stop Alloy
+        sc.exe start Alloy
+      ignore_errors: true
 
   post_tasks:
     - name: Wait for Alloy to start
@@ -123,13 +122,14 @@
         timeout: 60
 
     - name: Verify Alloy service status
-      win_service:
-        name: "Alloy"
+      win_shell: |
+        sc.exe query Alloy
       register: alloy_status
+      ignore_errors: true
 
     - name: Display Alloy status
       debug:
-        msg: "Alloy service is {{ alloy_status.state }}"
+        msg: "Alloy service status: {{ alloy_status.stdout_lines }}"
 
     - name: Display Alloy UI URL
       debug:
