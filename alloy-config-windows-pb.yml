@@ -87,80 +87,16 @@
         dest: "C:\\Program Files\\Grafana Agent\\alloy-config.yml"
       notify: restart alloy windows
 
-    - name: Create Windows Event Log configuration
+    - name: Create main Alloy configuration file
       win_template:
-        src: windows-events.alloy.j2
-        dest: "{{ alloy_config_dir }}\\windows-events.alloy"
+        src: main-windows.alloy.j2
+        dest: "{{ alloy_config_dir }}\\config.alloy"
       notify: restart alloy windows
 
-    - name: Create IIS logs configuration (if IIS is installed)
-      block:
-        - name: Check if IIS is installed (method 1)
-          win_feature:
-            name: "IIS-WebServer"
-            state: present
-          register: iis_check_ws
-          check_mode: true
-          ignore_errors: true
-
-        - name: Check if IIS is installed (method 2 - Windows Server)
-          win_feature:
-            name: "Web-Server"
-            state: present
-          register: iis_check_server
-          check_mode: true
-          ignore_errors: true
-          when: iis_check_ws is failed
-
-        - name: Check if IIS service exists (fallback method)
-          win_service:
-            name: "W3SVC"
-          register: iis_service_check
-          ignore_errors: true
-          when: iis_check_ws is failed and (iis_check_server is skipped or iis_check_server is failed)
-
-        - name: Determine if IIS is available
-          set_fact:
-            iis_available: >-
-              {{ 
-                (iis_check_ws.success is defined and iis_check_ws.success) or
-                (iis_check_server.success is defined and iis_check_server.success) or
-                (iis_service_check.exists is defined and iis_service_check.exists)
-              }}
-
-        - name: Create IIS logs configuration file
-          win_template:
-            src: iis-logs.alloy.j2
-            dest: "{{ alloy_config_dir }}\\iis-logs.alloy"
-          when: iis_available | default(false)
-          notify: restart alloy windows
-
-    - name: Create application logs configuration
-      win_template:
-        src: app-logs-windows.alloy.j2
-        dest: "{{ alloy_config_dir }}\\app-logs.alloy"
+    - name: Configure Alloy service to use config file
+      win_shell: |
+        sc.exe config "Alloy" binPath= "\"C:\Program Files\Grafana Agent\alloy.exe\" run \"{{ alloy_config_dir }}\config.alloy\" --server.http.listen-addr=0.0.0.0:{{ alloy_ui_port }}"
       notify: restart alloy windows
-
-    - name: Create Docker logs configuration (if Docker exists)
-      block:
-        - name: Check if Docker is installed
-          win_shell: |
-            try {
-              docker --version
-              exit 0
-            } catch {
-              exit 1
-            }
-          register: docker_check
-          failed_when: false
-          changed_when: false
-
-        - name: Create Docker logs configuration file
-          win_template:
-            src: docker-windows.alloy.j2
-            dest: "{{ alloy_config_dir }}\\docker.alloy"
-          when: docker_check.rc == 0
-          notify: restart alloy windows
 
     - name: Update Alloy service configuration
       win_service:
