@@ -128,10 +128,12 @@ loki.relabel "journal_system" {
     regex = "emerg"
     replacement = "fatal"
   }
+
+  forward_to = [loki.write.journal_loki.receiver]
 }
 
 loki.source.journal "journal_system" {
-  forward_to    = [loki.write.journal.receiver]
+  forward_to    = [loki.write.journal_loki.receiver]
   relabel_rules = loki.relabel.journal_system.rules
 }
 
@@ -261,10 +263,12 @@ loki.relabel "journal_network" {
     regex = "emerg"
     replacement = "fatal"
   }
+
+  forward_to = [loki.write.journal_loki.receiver]
 }
 
 loki.source.journal "journal_network" {
-  forward_to    = [loki.write.journal.receiver]
+  forward_to    = [loki.write.journal_loki.receiver]
   relabel_rules = loki.relabel.journal_network.rules
 }
 
@@ -394,17 +398,19 @@ loki.relabel "journal_app" {
     regex = "emerg"
     replacement = "fatal"
   }
+
+  forward_to = [loki.write.journal_loki.receiver]
 }
 
 loki.source.journal "journal_app" {
-  forward_to    = [loki.write.journal.receiver]
+  forward_to    = [loki.write.journal_loki.receiver]
   relabel_rules = loki.relabel.journal_app.rules
 }
 
 //
 // Common Loki writer
 //
-loki.write "journal" {
+loki.write "journal_loki" {
   endpoint {
     url = "{{ loki_endpoint_url }}"
   }
