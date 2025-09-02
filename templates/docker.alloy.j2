@@ -14,17 +14,19 @@ discovery.relabel "container_logs" {
   // Map container metadata to labels
   rule {
     source_labels = ["__meta_docker_container_name"]
-    target_label = "container_name"
+    target_label = "subcategory"
   }
-  
+
+  // Keep container_network_ip as field instead of label
   rule {
     source_labels = ["__meta_docker_network_ip"]
-    target_label = "container_network_ip"
+    target_label = "__field_container_network_ip"
   }
   
+  // Keep container_network_mode as field instead of label
   rule {
     source_labels = ["__meta_docker_container_network_mode"]
-    target_label = "container_network_mode"
+    target_label = "__field_container_network_mode"
   }
 
   // Keep container_id as field instead of label
@@ -66,7 +68,7 @@ loki.relabel "docker_normalized" {
   }
 
   rule {
-    target_label = "origin"
+    target_label = "category"
     replacement = "docker"
   }
 

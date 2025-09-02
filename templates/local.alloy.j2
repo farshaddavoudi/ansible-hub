@@ -32,14 +32,14 @@ loki.relabel "local_adjust_labels" {
   }
 
   rule {
-    target_label = "origin"
+    target_label = "category"
     replacement = "file"
   }
 
   rule {
     action        = "replace"
     source_labels = ["__path__"]
-    target_label  = "filename"
+    target_label  = "subcategory"
   }
 
   rule {

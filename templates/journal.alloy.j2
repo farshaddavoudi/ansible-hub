@@ -32,12 +32,12 @@ loki.relabel "journal_system" {
   }
   
   rule {
-    target_label = "origin"
+    target_label = "category"
     replacement = "systemd"
   }
 
   rule {
-    target_label = "log_type"
+    target_label = "subcategory"
     replacement = "os"
   }
 
@@ -315,12 +315,12 @@ loki.relabel "journal_app" {
   }
   
   rule {
-    target_label = "origin"
+    target_label = "category"
     replacement = "systemd"
   }
 
   rule {
-    target_label = "log_type"
+    target_label = "subcategory"
     replacement = "service"
   }
 
