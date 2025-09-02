@@ -1,5 +1,5 @@
 # Alloy Configuration Directory for Windows
-alloy_config_dir: "C:\\Program Files\\Grafana Agent\\config"
+alloy_config_dir: "C:\\Program Files\\Alloy\\config"
 
 # Alloy Version to install
 alloy_version: "v1.10.2"

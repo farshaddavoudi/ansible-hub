@@ -1,6 +1,9 @@
 # Usage: 
 # ansible-galaxy install -r requirements.yml
-# ansible-playbook alloy-config-windows-pb.yml
+# ansible-playbook alloy-config-window    - name: Configure Alloy service to use config file
+      win_shell: |
+        sc.exe config Alloy binPath= "C:\Program Files\Alloy\alloy.exe run C:\Program Files\Alloy\config\config.alloy --server.http.listen-addr=0.0.0.0:{{ alloy_ui_port }}"
+      notify: restart alloy windows.yml
 ---
 - name: Install and Configure Grafana Alloy on Windows
   hosts: alloy_win_servers
@@ -11,7 +14,7 @@
     - name: Check if Alloy is already installed
       win_shell: |
         try {
-          $version = & "C:\Program Files\Grafana Agent\alloy.exe" --version
+          $version = & "C:\Program Files\Alloy\alloy.exe" --version
           Write-Output $version
         } catch {
           Write-Output "Not installed"
@@ -84,7 +87,7 @@
     - name: Configure Alloy environment variables
       win_template:
         src: alloy-env-windows.j2
-        dest: "C:\\Program Files\\Grafana Agent\\alloy-config.yml"
+        dest: "C:\\Program Files\\Alloy\\alloy-config.yml"
       notify: restart alloy windows
 
     - name: Create main Alloy configuration file
