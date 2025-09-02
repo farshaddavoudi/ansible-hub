@@ -27,13 +27,19 @@ all:
     win_webserver_107:
       ansible_host: 192.168.1.107
       ansible_connection: winrm
-      ansible_user: administrator
-      ansible_password: password # Setup passwordless connection
+      ansible_user: 'Administrator'
+      ansible_password: 'MyPass' # Setup passwordless connection
+      ansible_winrm_transport: basic
+      ansible_port: 5985
+      ansible_winrm_server_cert_validation: ignore
     win_azuredevops_119:
       ansible_host: 192.168.1.119
       ansible_connection: winrm
-      ansible_user: administrator
-      ansible_password: password # Setup passwordless connection
+      ansible_user: 'Administrator'
+      ansible_password: 'MyPass' # Setup passwordless connection
+      ansible_winrm_transport: basic
+      ansible_port: 5985
+      ansible_winrm_server_cert_validation: ignore
 
     # ArvanCloud VMs
     arvan_vm3_203:
