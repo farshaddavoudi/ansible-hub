@@ -23,33 +23,44 @@
 
     - name: Install Grafana Alloy (if not already installed)
       block:
-        - name: Create temporary directory for installer
-          win_tempfile:
+        - name: Create installer cache directory
+          win_file:
+            path: "C:\\temp\\alloy_installers"
             state: directory
-            suffix: alloy_install
-          register: temp_dir
+
+        - name: Check if installer already exists in cache
+          win_stat:
+            path: "C:\\temp\\alloy_installers\\alloy-installer-{{ alloy_version }}.zip"
+          register: installer_cached
 
         - name: Download Grafana Alloy Windows installer
           win_get_url:
             url: "https://github.com/grafana/alloy/releases/download/{{ alloy_version }}/alloy-installer-windows-amd64.exe.zip"
-            dest: "{{ temp_dir.path }}\\alloy-installer.zip"
-            force: true
+            dest: "C:\\temp\\alloy_installers\\alloy-installer-{{ alloy_version }}.zip"
+            force: false
+          when: not installer_cached.stat.exists
+
+        - name: Create temporary directory for extraction
+          win_tempfile:
+            state: directory
+            suffix: alloy_extract
+          register: extract_dir
 
         - name: Extract installer from zip
           win_unzip:
-            src: "{{ temp_dir.path }}\\alloy-installer.zip"
-            dest: "{{ temp_dir.path }}"
+            src: "C:\\temp\\alloy_installers\\alloy-installer-{{ alloy_version }}.zip"
+            dest: "{{ extract_dir.path }}"
 
         - name: Install Grafana Alloy
           win_package:
-            path: "{{ temp_dir.path }}\\alloy-installer-windows-amd64.exe"
+            path: "{{ extract_dir.path }}\\alloy-installer-windows-amd64.exe"
             arguments: '/S'
             state: present
             wait_for_children: true
 
-        - name: Clean up installer
+        - name: Clean up extraction directory
           win_file:
-            path: "{{ temp_dir.path }}"
+            path: "{{ extract_dir.path }}"
             state: absent
 
       when: alloy_check.rc != 0
@@ -181,4 +192,4 @@
 
     - name: Display Alloy UI URL
       debug:
-        msg: "Alloy UI available at: http://{{ ansible_default_ipv4.address }}:{{ alloy_ui_port }}"
+        msg: "Alloy UI available at: http://{{ ansible_host }}:{{ alloy_ui_port }}"
