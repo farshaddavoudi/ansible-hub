@@ -61,7 +61,12 @@ loki.relabel "docker_normalized" {
   }
   
   rule {
-    target_label = "log_type"
+    target_label = "service_name"
+    replacement = "{{ server_identifier }}"
+  }
+
+  rule {
+    target_label = "origin"
     replacement = "docker"
   }
 

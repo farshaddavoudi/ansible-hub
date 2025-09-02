@@ -32,8 +32,13 @@ loki.relabel "journal_system" {
   }
   
   rule {
+    target_label = "origin"
+    replacement = "systemd"
+  }
+
+  rule {
     target_label = "log_type"
-    replacement = "system"
+    replacement = "os"
   }
 
   // Drop noisy defaults
@@ -170,6 +175,11 @@ loki.relabel "journal_network" {
   }
   
   rule {
+    target_label = "origin"
+    replacement = "systemd"
+  }
+
+  rule {
     target_label = "log_type"
     replacement = "network"
   }
@@ -305,8 +315,13 @@ loki.relabel "journal_app" {
   }
   
   rule {
+    target_label = "origin"
+    replacement = "systemd"
+  }
+
+  rule {
     target_label = "log_type"
-    replacement = "app"
+    replacement = "service"
   }
 
   rule {
