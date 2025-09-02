@@ -66,7 +66,7 @@
 
     - name: Stop Alloy service before configuration
       win_service:
-        name: "Grafana Agent"
+        name: "Alloy"
         state: stopped
       ignore_errors: true
 
@@ -84,18 +84,44 @@
 
     - name: Create IIS logs configuration (if IIS is installed)
       block:
-        - name: Check if IIS is installed
+        - name: Check if IIS is installed (method 1)
           win_feature:
-            name: "IIS-WebServerRole"
+            name: "IIS-WebServer"
             state: present
-          register: iis_check
+          register: iis_check_ws
           check_mode: true
+          ignore_errors: true
+
+        - name: Check if IIS is installed (method 2 - Windows Server)
+          win_feature:
+            name: "Web-Server"
+            state: present
+          register: iis_check_server
+          check_mode: true
+          ignore_errors: true
+          when: iis_check_ws is failed
+
+        - name: Check if IIS service exists (fallback method)
+          win_service:
+            name: "W3SVC"
+          register: iis_service_check
+          ignore_errors: true
+          when: iis_check_ws is failed and (iis_check_server is skipped or iis_check_server is failed)
+
+        - name: Determine if IIS is available
+          set_fact:
+            iis_available: >-
+              {{ 
+                (iis_check_ws.success is defined and iis_check_ws.success) or
+                (iis_check_server.success is defined and iis_check_server.success) or
+                (iis_service_check.exists is defined and iis_service_check.exists)
+              }}
 
         - name: Create IIS logs configuration file
           win_template:
             src: iis-logs.alloy.j2
             dest: "{{ alloy_config_dir }}\\iis-logs.alloy"
-          when: iis_check.success is defined and iis_check.success
+          when: iis_available | default(false)
           notify: restart alloy windows
 
     - name: Create application logs configuration
@@ -127,14 +153,14 @@
 
     - name: Update Alloy service configuration
       win_service:
-        name: "Grafana Agent"
+        name: "Alloy"
         start_mode: auto
         state: started
 
   handlers:
     - name: restart alloy windows
       win_service:
-        name: "Grafana Agent"
+        name: "Alloy"
         state: restarted
 
   post_tasks:
@@ -146,7 +172,7 @@
 
     - name: Verify Alloy service status
       win_service:
-        name: "Grafana Agent"
+        name: "Alloy"
       register: alloy_status
 
     - name: Display Alloy status
