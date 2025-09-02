@@ -31,13 +31,18 @@
 
         - name: Download Grafana Alloy Windows installer
           win_get_url:
-            url: "https://github.com/grafana/alloy/releases/latest/download/alloy-installer.exe"
-            dest: "{{ temp_dir.path }}\\alloy-installer.exe"
+            url: "https://github.com/grafana/alloy/releases/download/{{ alloy_version }}/alloy-installer-windows-amd64.exe.zip"
+            dest: "{{ temp_dir.path }}\\alloy-installer.zip"
             force: true
+
+        - name: Extract installer from zip
+          win_unzip:
+            src: "{{ temp_dir.path }}\\alloy-installer.zip"
+            dest: "{{ temp_dir.path }}"
 
         - name: Install Grafana Alloy
           win_package:
-            path: "{{ temp_dir.path }}\\alloy-installer.exe"
+            path: "{{ temp_dir.path }}\\alloy-installer-windows-amd64.exe"
             arguments: '/S'
             state: present
             wait_for_children: true

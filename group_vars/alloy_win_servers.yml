@@ -1,6 +1,9 @@
 # Alloy Configuration Directory for Windows
 alloy_config_dir: "C:\\Program Files\\Grafana Agent\\config"
 
+# Alloy Version to install
+alloy_version: "v1.10.2"
+
 # Alloy UI Port (optional, can be customized)
 alloy_ui_port: "12345"
 
