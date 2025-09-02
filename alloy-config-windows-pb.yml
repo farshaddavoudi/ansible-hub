@@ -100,7 +100,7 @@
 
     - name: Configure Alloy service to use config file
       win_shell: |
-        sc.exe config "Alloy" binPath= "\"C:\Program Files\Grafana Agent\alloy.exe\" run \"{{ alloy_config_dir }}\config.alloy\" --server.http.listen-addr=0.0.0.0:{{ alloy_ui_port }}"
+        sc.exe config Alloy binPath= "C:\Program Files\Alloy\alloy.exe run {{ alloy_config_dir }}\config.alloy --server.http.listen-addr=0.0.0.0:{{ alloy_ui_port }}"
       notify: restart alloy windows
 
     - name: Update Alloy service configuration
