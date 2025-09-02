@@ -20,9 +20,9 @@ loki.relabel "local_adjust_labels" {
     target_label = "source"
     replacement = "server"
   }
-  
+
   rule {
-    target_label = "server"
+    target_label = "__field_host"
     replacement = "{{ server_identifier }}"
   }
 
@@ -37,9 +37,20 @@ loki.relabel "local_adjust_labels" {
   }
 
   rule {
+    target_label = "__field_file"
+    replacement = "file"
+  }
+
+  rule {
     action        = "replace"
     source_labels = ["__path__"]
     target_label  = "subcategory"
+  }
+
+  rule {
+    action        = "replace"
+    source_labels = ["__path__"]
+    target_label  = "__field_path"
   }
 
   rule {

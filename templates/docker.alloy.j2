@@ -58,7 +58,7 @@ loki.relabel "docker_normalized" {
   }
   
   rule {
-    target_label = "server"
+    target_label = "__field_host"
     replacement = "{{ server_identifier }}"
   }
   

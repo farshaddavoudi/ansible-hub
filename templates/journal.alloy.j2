@@ -5,7 +5,7 @@ loki.relabel "journal_system" {
   // Map systemd unit to service label
   rule {
     source_labels = ["__journal__systemd_unit"]
-    target_label  = "systemd_service"
+    target_label  = "__field_systemd_service"
   }
 
   // Keep only system-related services
@@ -22,7 +22,7 @@ loki.relabel "journal_system" {
   }
   
   rule {
-    target_label = "server"
+    target_label = "__field_host"
     replacement = "{{ server_identifier }}"
   }
   
@@ -33,12 +33,12 @@ loki.relabel "journal_system" {
   
   rule {
     target_label = "category"
-    replacement = "systemd"
+    replacement = "systemd_os"
   }
 
   rule {
-    target_label = "subcategory"
-    replacement = "os"
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "subcategory"
   }
 
   // Drop noisy defaults
@@ -148,7 +148,7 @@ loki.source.journal "journal_system" {
 loki.relabel "journal_network" {
   rule {
     source_labels = ["__journal__systemd_unit"]
-    target_label  = "systemd_service"
+    target_label  = "__field_systemd_service"
   }
 
   // Keep only network-related services
@@ -165,7 +165,7 @@ loki.relabel "journal_network" {
   }
   
   rule {
-    target_label = "server"
+    target_label = "__field_host"
     replacement = "{{ server_identifier }}"
   }
   
@@ -175,13 +175,13 @@ loki.relabel "journal_network" {
   }
   
   rule {
-    target_label = "origin"
-    replacement = "systemd"
+    target_label = "category"
+    replacement = "systemd_network"
   }
 
   rule {
-    target_label = "log_type"
-    replacement = "network"
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "subcategory"
   }
 
   rule {
@@ -288,7 +288,7 @@ loki.source.journal "journal_network" {
 loki.relabel "journal_app" {
   rule {
     source_labels = ["__journal__systemd_unit"]
-    target_label  = "systemd_service"
+    target_label  = "__field_systemd_service"
   }
 
   // Drop known system and network services → everything else is app
@@ -305,7 +305,7 @@ loki.relabel "journal_app" {
   }
   
   rule {
-    target_label = "server"
+    target_label = "__field_host"
     replacement = "{{ server_identifier }}"
   }
   
@@ -316,12 +316,12 @@ loki.relabel "journal_app" {
   
   rule {
     target_label = "category"
-    replacement = "systemd"
+    replacement = "systemd_service"
   }
 
   rule {
-    target_label = "subcategory"
-    replacement = "service"
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "subcategory"
   }
 
   rule {
