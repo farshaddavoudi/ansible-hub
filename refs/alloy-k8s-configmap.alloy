@@ -82,22 +82,13 @@ loki.source.file "pod_logs" {
 }
 
 loki.process "pod_logs" {
-  // Example: regex extraction for HTTP methods
-  stage.match {
-    selector = "{namespace=\"myapp\"}"
-    stage.regex {
-      expression = "(?P<method>GET|PUT|POST|DELETE|PATCH)"
-    }
-    stage.labels {
-      values = {
-        method = "",
-      }
-    }
-  }
-
-  // Runtime-specific parsing
+  // Apply container runtime parsers
   stage.match {
     selector = "{__field_container_runtime=\"containerd\"}"
+    stage.cri {}
+  }
+  stage.match {
+    selector = "{filename=~\"/var/log/pods/.+/0.log\"}"
     stage.cri {}
   }
   stage.match {
@@ -105,43 +96,39 @@ loki.process "pod_logs" {
     stage.docker {}
   }
 
-  // 🔹 Multiline parsing for .NET exceptions
+  // --- Multiline parsing: join lines belonging to one error
   stage.multiline {
-    firstline = "^(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}|Unhandled exception|fail:|warn:|info:|crit:)"
+    firstline    = `^\[\d{2}:\d{2}:\d{2} (ERR|WRN|INF|DBG|CRIT)\]`
     max_wait_time = "3s"
   }
 
-  // 🔹 Extract raw log level (any synonym)
+  // --- Log level detection inside the multiline batch
   stage.regex {
-    expression = "(?i)(?P<raw_level>info|warn|warning|error|err|fail|critical|crit|fatal)"
-  }
-
-  // 🔹 Normalize log levels into 4 canonical values
-  stage.replace {
-    source     = "raw_level"
-    expression = "(?i)warn(ing)?"
-    replace    = "warning"
+    expression = "(?i)(?P<raw_level>ERR|ERROR|WRN|WARN|WARNING|INF|INFO|CRIT|FATAL)"
   }
 
   stage.replace {
     source     = "raw_level"
-    expression = "(?i)(err(or)?|fail)"
+    expression = "(?i)ERR|ERROR"
     replace    = "error"
   }
-
   stage.replace {
     source     = "raw_level"
-    expression = "(?i)(crit(ical)?|fatal)"
+    expression = "(?i)WRN|WARN|WARNING"
+    replace    = "warning"
+  }
+  stage.replace {
+    source     = "raw_level"
+    expression = "(?i)INF|INFO"
+    replace    = "info"
+  }
+  stage.replace {
+    source     = "raw_level"
+    expression = "(?i)CRIT|FATAL"
     replace    = "critical"
   }
 
-  stage.replace {
-    source     = "raw_level"
-    expression = "(?i)info"
-    replace    = "info"
-  }
-
-  // Attach normalized level as label
+  // Attach the normalized log level as a log label
   stage.labels {
     values = {
       level = "",
