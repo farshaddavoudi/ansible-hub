@@ -797,11 +797,10 @@ matrix_appservice_discord_database_password: "{{ '%s' | format(matrix_homeserver
 
 ######################################################################
 #
-# matrix-appservice-webhooks
+# matrix-appservice-webhooks (DISABLED - Using Hookshot instead)
 #
 ######################################################################
 
-# We don't enable bridges by default.
 matrix_appservice_webhooks_enabled: false
 
 matrix_appservice_webhooks_hostname: "{{ matrix_server_fqn_matrix }}"
@@ -2275,18 +2274,31 @@ matrix_heisenbridge_homeserver_url: "{{ matrix_addons_homeserver_client_api_url 
 #
 ######################################################################
 
-# We don't enable bridges by default.
-matrix_hookshot_enabled: false
+# Hookshot bridge - Standard configuration for webhook integration
+matrix_hookshot_enabled: true
+
+# Enable debug logging for troubleshooting
+matrix_hookshot_logging_level: debug
+
+# Enable generic webhooks for external service integration (Sentry, etc.)
+matrix_hookshot_generic_enabled: true
+
+# Standard Hookshot configuration - all other services disabled
+matrix_hookshot_github_enabled: false
+matrix_hookshot_gitlab_enabled: false
+matrix_hookshot_jira_enabled: false
+matrix_hookshot_figma_enabled: false
+matrix_hookshot_feeds_enabled: false
 
 matrix_hookshot_docker_image_registry_prefix_upstream: "{{ matrix_container_global_registry_prefix_override if matrix_container_global_registry_prefix_override else matrix_hookshot_docker_image_registry_prefix_upstream_default }}"
 
 matrix_hookshot_container_image_self_build: "{{ matrix_architecture not in ['arm64', 'amd64'] }}"
 
-matrix_hookshot_appservice_token: "{{ '%s' | format(matrix_homeserver_generic_secret_key) | password_hash('sha512', 'hookshot.as.tok', rounds=655555) | to_uuid }}"
+matrix_hookshot_appservice_token: "{{ '%s' | format(matrix_homeserver_generic_secret_key) | password_hash('sha512', 'hookshot.as.v2', rounds=655555) | to_uuid }}"
 
-matrix_hookshot_homeserver_token: "{{ '%s' | format(matrix_homeserver_generic_secret_key) | password_hash('sha512', 'hookshot.hs.tok', rounds=655555) | to_uuid }}"
+matrix_hookshot_homeserver_token: "{{ '%s' | format(matrix_homeserver_generic_secret_key) | password_hash('sha512', 'hookshot.hs.v2', rounds=655555) | to_uuid }}"
 
-matrix_hookshot_homeserver_address: "{{ matrix_addons_homeserver_client_api_url }}"
+matrix_hookshot_homeserver_address: "{{ matrix_homeserver_container_url }}"
 
 matrix_hookshot_systemd_wanted_services_list: |
   {{
@@ -2300,12 +2312,16 @@ matrix_hookshot_systemd_wanted_services_list: |
 # because connectivity is still potentially troublesome and is to be investigated.
 matrix_hookshot_cache_redis_host: "{{ valkey_identifier if valkey_enabled else '' }}"
 
+# Remove permissions to use default (all users have admin access)
+
 matrix_hookshot_container_network: "{{ matrix_addons_container_network }}"
 
 matrix_hookshot_container_additional_networks_auto: |
   {{
     (
       ([] if matrix_addons_homeserver_container_network == '' else [matrix_addons_homeserver_container_network])
+      +
+      ([matrix_homeserver_container_network] if matrix_homeserver_container_network != matrix_hookshot_container_network else [])
       +
       ([valkey_container_network] if valkey_enabled and matrix_hookshot_cache_redis_host == valkey_identifier else [])
       +
@@ -6099,7 +6115,7 @@ matrix_user_creator_users_auto: |
     ([{
       'username': matrix_bot_draupnir_login,
       'initial_password': matrix_bot_draupnir_password,
-      'initial_type': 'bot',
+      'initial_type': ('admin' if matrix_bot_draupnir_admin_api_enabled else 'bot'),
     }] if matrix_bot_draupnir_enabled and matrix_bot_draupnir_password else [])
   }}
 

@@ -1,0 +1,127 @@
+---
+- name: Configure DNS Settings
+  hosts: linux_dev_37                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+  become: yes
+
+  vars:
+    dns_servers:             # DNS servers list (primary + fallback)
+      #- 178.22.122.100      # Shecan Primary DNS
+      #- 185.51.200.2        # Shecan Secondary DNS
+      - 78.157.42.100        # Electro Primary DNS
+      - 78.157.42.101        # Electro Secondary DNS
+      - 8.8.8.8              # Google DNS
+      - 1.1.1.1              # Cloudflare DNS
+
+  tasks:
+    - name: Configure DNS settings
+      block:
+        # Method 1: Netplan (modern Ubuntu systems)
+        - name: Check for existing Netplan configuration files
+          find:
+            paths: /etc/netplan/
+            patterns: "*.yaml,*.yml"
+          register: netplan_files
+
+        - name: Configure DNS via Netplan (Ubuntu 18.04+)
+          block:
+            - name: Check if Ansible-managed Netplan DNS file already exists
+              stat:
+                path: /etc/netplan/99-ansible-dns.yaml
+              register: ansible_netplan_exists
+
+            - name: Copy existing Netplan file to Ansible-managed configuration
+              copy:
+                src: "{{ netplan_files.files[0].path }}"
+                dest: /etc/netplan/99-ansible-dns.yaml
+                remote_src: yes
+                backup: yes
+                mode: '0600'
+              when: not ansible_netplan_exists.stat.exists
+
+            - name: Create Python script to update DNS nameservers
+              copy:
+                content: |
+                  #!/usr/bin/env python3
+                  import yaml
+                  import sys
+                  
+                  netplan_file = "/etc/netplan/99-ansible-dns.yaml"
+                  dns_servers = {{ dns_servers | to_json }}
+                  
+                  try:
+                      # Read the existing file
+                      with open(netplan_file, 'r') as f:
+                          config = yaml.safe_load(f)
+                      
+                      # Update DNS servers in all ethernet interfaces
+                      if 'network' in config and 'ethernets' in config['network']:
+                          for interface in config['network']['ethernets']:
+                              if 'nameservers' in config['network']['ethernets'][interface]:
+                                  config['network']['ethernets'][interface]['nameservers']['addresses'] = dns_servers
+                      
+                      # Write back the updated config
+                      with open(netplan_file, 'w') as f:
+                          yaml.dump(config, f, default_flow_style=False, indent=2)
+                      
+                      print("DNS nameservers updated successfully")
+                  except Exception as e:
+                      print(f"Error updating DNS nameservers: {e}")
+                      sys.exit(1)
+                dest: /tmp/update_netplan_dns.py
+                mode: '0755'
+
+            - name: Execute DNS nameserver update script
+              command: python3 /tmp/update_netplan_dns.py
+              register: dns_update_result
+
+            - name: Display DNS update result
+              debug:
+                var: dns_update_result.stdout
+
+            - name: Clean up temporary script
+              file:
+                path: /tmp/update_netplan_dns.py
+                state: absent
+              notify: 
+                - apply netplan
+                - restart systemd-resolved
+                - flush dns cache
+
+          when: netplan_files.files | length > 0
+
+        # Method 2: Fallback to systemd-resolved for non-Netplan systems
+        - name: Configure DNS via systemd-resolved (fallback)
+          block:
+            - name: Configure systemd-resolved DNS
+              lineinfile:
+                path: /etc/systemd/resolved.conf
+                regexp: '^#?DNS='
+                line: "DNS={{ dns_servers | join(' ') }}"
+                backup: yes
+              notify: 
+                - restart systemd-resolved
+                - flush dns cache
+
+            - name: Configure systemd-resolved FallbackDNS
+              lineinfile:
+                path: /etc/systemd/resolved.conf
+                regexp: '^#?FallbackDNS='
+                line: "FallbackDNS={{ dns_servers[-2:] | join(' ') }}"
+                backup: yes
+              notify: 
+                - restart systemd-resolved
+                - flush dns cache
+
+          when: netplan_files.files | length == 0
+
+  handlers:
+    - name: apply netplan
+      command: netplan apply
+
+    - name: restart systemd-resolved
+      systemd:
+        name: systemd-resolved
+        state: restarted
+
+    - name: flush dns cache
+      command: resolvectl flush-caches

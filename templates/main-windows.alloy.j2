@@ -1,0 +1,171 @@
+//
+// Main Alloy Configuration for Windows
+// This file includes all other configuration modules
+//
+
+{% if windows_event_channels is defined and windows_event_channels|length > 0 %}
+//
+// Windows Event Log receivers
+//
+{% for channel in windows_event_channels %}
+otelcol.receiver.windows_event_log "{{ channel.name.lower() }}_logs" {
+  channel = "{{ channel.name }}"
+  
+  // Optional: filter specific event IDs or sources
+  // xpath_query = "*[System[Level=1 or Level=2 or Level=3]]"  // Error, Critical, Warning only
+}
+
+otelcol.processor.attributes "{{ channel.name.lower() }}_log_attributes" {
+  actions = [
+    {
+      key    = "source"
+      action = "insert"
+      value  = "server"
+    },
+    {
+      key    = "server"
+      action = "insert"
+      value  = "{{ server_identifier }}"
+    },
+    {
+      key    = "service_name"
+      action = "insert"
+      value  = "{{ server_identifier }}"
+    },
+    {
+      key    = "category"
+      action = "insert"
+      value  = "windows_event"
+    },
+    {
+      key    = "subcategory"
+      action = "insert"
+      value  = "{{ channel.subcategory }}"
+    },
+    {
+      key    = "log_type"
+      action = "insert"
+      value  = "event_log"
+    }
+  ]
+}
+
+{% endfor %}
+
+//
+// Loki writer for Windows Event Logs
+//
+loki.write "windows_events" {
+  endpoint {
+    url = "{{ loki_endpoint_url }}"
+  }
+}
+
+//
+// Pipeline configuration
+//
+otelcol.service "windows_event_logs" {
+  pipelines {
+    logs = [
+{% for channel in windows_event_channels %}
+      otelcol.receiver.windows_event_log.{{ channel.name.lower() }}_logs.output,
+      otelcol.processor.attributes.{{ channel.name.lower() }}_log_attributes.output,
+{% endfor %}
+      loki.write.windows_events.input,
+    ]
+  }
+}
+{% endif %}
+
+{% if (app_log_files | default(default_app_log_files))|length > 0 %}
+//
+// Application Log Files
+//
+local.file_match "app_log_source_file_match" {
+  path_targets = [
+{% for log_file in (app_log_files | default(default_app_log_files)) %}
+    {"__address__" = "localhost", "__path__" = "{{ log_file }}"},
+{% endfor %}
+  ]
+  sync_period = "10s"
+}
+
+loki.source.file "app_log_sources" {
+  targets      = local.file_match.app_log_source_file_match.targets
+  tail_from_end = false
+  forward_to   = [loki.relabel.app_adjust_labels.receiver]
+}
+
+loki.relabel "app_adjust_labels" {
+  forward_to = [loki.write.app_loki.receiver]
+
+  rule {
+    target_label = "source"
+    replacement = "server"
+  }
+  
+  rule {
+    target_label = "server"
+    replacement = "{{ server_identifier }}"
+  }
+
+  rule {
+    target_label = "service_name"
+    replacement = "{{ server_identifier }}"
+  }
+
+  rule {
+    target_label = "category"
+    replacement = "application"
+  }
+
+  rule {
+    action        = "replace"
+    source_labels = ["__path__"]
+    target_label  = "subcategory"
+  }
+
+  // Extract level from log line if present
+  rule {
+    action        = "replace"
+    source_labels = ["__line__"]
+    regex         = "(?i).*\\b(debug|info|information|warn|warning|error|fatal|critical)\\b.*"
+    target_label  = "level"
+    replacement   = "$1"
+  }
+
+  // Normalize level variants
+  rule {
+    source_labels = ["level"]
+    target_label = "level"
+    regex = "information"
+    replacement = "info"
+  }
+  
+  rule {
+    source_labels = ["level"]
+    target_label = "level"
+    regex = "warn"
+    replacement = "warning"
+  }
+
+  // Default level if none found
+  rule {
+    source_labels = ["level"]
+    target_label = "level"
+    regex = "^$"
+    replacement = "info"
+  }
+
+  rule {
+    action        = "labeldrop"
+    regex         = "job"
+  }
+}
+
+loki.write "app_loki" {
+  endpoint {
+    url = "{{ loki_endpoint_url }}"
+  }
+}
+{% endif %}

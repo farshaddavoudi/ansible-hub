@@ -1,0 +1,155 @@
+---
+# APT Package Manager Fix Role
+# This role ensures apt is in a clean state and ready for package operations
+
+- name: Check if this is a Debian/Ubuntu system
+  fail:
+    msg: "This role only works on Debian/Ubuntu systems"
+  when: ansible_os_family != "Debian"
+
+- name: Check if apt is available
+  command: which apt-get
+  register: apt_check
+  changed_when: false
+  failed_when: false
+
+- name: Skip if apt is not available
+  meta: end_play
+  when: apt_check.rc != 0
+
+- name: Setup Iranian mirror repositories (if enabled)
+  block:
+    - name: Backup original sources.list
+      copy:
+        src: /etc/apt/sources.list
+        dest: /etc/apt/sources.list.backup
+        remote_src: true
+      ignore_errors: true
+
+    - name: Get Ubuntu codename
+      command: lsb_release -cs
+      register: ubuntu_codename
+      changed_when: false
+
+    - name: Configure Iranian mirror repositories
+      template:
+        src: sources.list.j2
+        dest: /etc/apt/sources.list
+        owner: root
+        group: root
+        mode: '0644'
+        backup: "{{ apt_fix_backup_config }}"
+
+    - name: Update apt cache with Iranian mirrors
+      shell: |
+        export DEBIAN_FRONTEND=noninteractive
+        timeout 120 apt-get update --fix-missing -y
+      register: iranian_mirror_update
+      retries: 3
+      delay: 5
+      failed_when: false
+
+  when: use_iranian_mirrors | bool
+
+- name: Fix apt package manager issues
+  block:
+    - name: Wait for automatic system updates to complete
+      shell: |
+        timeout=0
+        while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+          if [ $timeout -ge 300 ]; then
+            echo "Timeout waiting for dpkg lock"
+            break
+          fi
+          sleep 5
+          timeout=$((timeout + 5))
+        done
+      changed_when: false
+      failed_when: false
+
+    - name: Kill any hanging apt processes
+      shell: |
+        pkill -f apt 2>/dev/null || true
+        pkill -f dpkg 2>/dev/null || true  
+        pkill -f unattended-upgrade 2>/dev/null || true
+        sleep 2
+      changed_when: false
+      ignore_errors: true
+      failed_when: false
+
+    - name: Remove apt locks if they exist
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /var/lib/dpkg/lock-frontend
+        - /var/lib/dpkg/lock
+        - /var/cache/apt/archives/lock
+        - /var/lib/apt/lists/lock
+      ignore_errors: true
+      failed_when: false
+
+    - name: Configure dpkg to avoid interactive prompts
+      copy:
+        content: |
+          APT::Get::Assume-Yes "true";
+          APT::Get::allow-unauthenticated "true";
+          DPkg::Options "--force-confdef";
+          DPkg::Options "--force-confold";
+          DPkg::Options "--force-confnew";
+        dest: /etc/apt/apt.conf.d/90ansible-noninteractive
+        mode: '0644'
+        backup: yes
+
+    - name: Clean apt cache and lists
+      shell: |
+        apt-get clean 2>/dev/null || true
+        apt-get autoclean 2>/dev/null || true
+        rm -rf /var/lib/apt/lists/* 2>/dev/null || true
+      changed_when: false
+      failed_when: false
+
+    - name: Update apt cache with retries
+      shell: |
+        export DEBIAN_FRONTEND=noninteractive
+        timeout 120 apt-get update --fix-missing -y
+      register: apt_update_result
+      until: apt_update_result.rc == 0
+      retries: 3
+      delay: 15
+      failed_when: false
+      changed_when: false
+
+    - name: Fallback apt update if previous failed
+      shell: |
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update --allow-releaseinfo-change -y
+      when: apt_update_result.rc != 0
+      register: apt_fallback_result
+      failed_when: false
+      changed_when: false
+      timeout: 180
+
+  rescue:
+    - name: Handle apt update failure
+      debug:
+        msg: "APT update failed after retries. This may be due to network connectivity or repository issues."
+      
+    - name: Final attempt with basic apt update
+      shell: |
+        export DEBIAN_FRONTEND=noninteractive
+        timeout 60 apt-get update
+      ignore_errors: true
+      failed_when: false
+
+- name: Verify apt is working
+  shell: |
+    export DEBIAN_FRONTEND=noninteractive
+    timeout 30 apt-cache policy apt-utils >/dev/null 2>&1
+  register: apt_verify
+  failed_when: false
+  changed_when: false
+
+- name: Report apt status
+  debug:
+    msg: "{{ 'APT is working correctly' if apt_verify.rc == 0 else 'APT may have issues but playbook will continue' }}"

@@ -1,0 +1,25 @@
+---
+# Default variables for apt-fix role
+
+# Maximum time to wait for lock files to be released (seconds)
+apt_fix_timeout: 300
+
+# Number of retries for apt update
+apt_fix_retries: 5
+
+# Delay between retries (seconds)
+apt_fix_delay: 10
+
+# Whether to force apt-get instead of aptitude
+apt_fix_force_apt_get: true
+
+# Whether to create backup of apt configuration
+apt_fix_backup_config: true
+
+# Iranian mirror configuration
+use_iranian_mirrors: false
+
+# Available Iranian mirrors (in order of preference)
+iranian_mirrors:
+  - name: "ArvanCloud"
+    url: "http://mirror.arvancloud.ir/ubuntu"

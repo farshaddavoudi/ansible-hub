@@ -5,8 +5,7 @@ bridge:
   domain: {{ matrix_domain }}
   url: {{ matrix_hookshot_homeserver_address }}
   mediaUrl: {{ matrix_hookshot_homeserver_address }}
-  port: {{ matrix_hookshot_appservice_port }}
-  bindAddress: 0.0.0.0
+  registration: /data/registration.yml
 {% if matrix_hookshot_github_enabled %}
 github:
   # (Optional) Configure this to enable GitHub support
@@ -80,6 +79,9 @@ generic:
   userIdPrefix: {{ matrix_hookshot_generic_userIdPrefix | to_json }}
   allowJsTransformationFunctions: {{ matrix_hookshot_generic_allowJsTransformationFunctions | to_json }}
   waitForComplete: {{ matrix_hookshot_generic_waitForComplete | to_json }}
+  sendExpiryNotice: {{ matrix_hookshot_generic_sendExpiryNotice | to_json }}
+  requireExpiryTime: {{ matrix_hookshot_generic_requireExpiryTime | to_json }}
+  maxExpiryTime: {{ matrix_hookshot_generic_maxExpiryTime | to_json }}
 {% endif %}
 {% if matrix_hookshot_feeds_enabled %}
 feeds:
@@ -137,9 +139,8 @@ permissions: {{ matrix_hookshot_permissions | to_json }}
 listeners:
   # (Optional) HTTP Listener configuration.
   # Bind resource endpoints to ports and addresses.
-  # 'resources' may be any of webhooks, widgets, metrics
+  # 'resources' may be any of webhooks, widgets, metrics, appservice
   #
-{# always enabled since all services need it #}
   - port: {{ matrix_hookshot_webhook_port }}
     bindAddress: 0.0.0.0
     resources:
@@ -156,3 +157,7 @@ listeners:
     resources:
       - widgets
 {% endif %}
+  - port: {{ matrix_hookshot_appservice_port }}
+    bindAddress: 0.0.0.0
+    resources:
+      - appservice

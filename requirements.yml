@@ -1,0 +1,13 @@
+---
+# Ansible collections required for this project
+collections:
+  - name: community.docker
+    version: ">=3.0.0"
+  - name: grafana.grafana
+    version: ">=1.0.0"
+
+# Ansible roles required for this project
+# roles:
+#   - name: geerlingguy.docker
+#     src: geerlingguy.docker
+#     version: "7.4.7"

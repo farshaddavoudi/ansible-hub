@@ -1,0 +1,136 @@
+# Usage: 
+# ansible-galaxy install -r requirements.yml
+# ansible-playbook alloy-config-window    - name: Configure Alloy service to use config file
+---
+- name: Install and Configure Grafana Alloy on Windows
+  hosts: alloy_win_servers
+  become: false
+  become_method: runas
+
+  tasks:
+    - name: Configure Alloy service to use config file (initial)
+      win_shell: >
+        sc.exe config "Alloy" binPath= "C:\Program Files\Alloy\alloy.exe run C:\Program Files\Alloy\config\config.alloy --server.http.listen-addr=0.0.0.0:{{ alloy_ui_port }}"
+      notify: restart alloy windows
+
+    - name: Check if Alloy is already installed
+      win_shell: |
+        try {
+          $version = & "C:\Program Files\Alloy\alloy.exe" --version
+          Write-Output $version
+        } catch {
+          Write-Output "Not installed"
+          exit 1
+        }
+      register: alloy_check
+      failed_when: false
+      changed_when: false
+
+    - name: Install Grafana Alloy (if not already installed)
+      block:
+        - name: Create installer cache directory
+          win_file:
+            path: "C:\\temp\\alloy_installers"
+            state: directory
+
+        - name: Check if installer already exists in cache
+          win_stat:
+            path: "C:\\temp\\alloy_installers\\alloy-installer-{{ alloy_version }}.zip"
+          register: installer_cached
+
+        - name: Download Grafana Alloy Windows installer
+          win_get_url:
+            url: "https://github.com/grafana/alloy/releases/download/{{ alloy_version }}/alloy-installer-windows-amd64.exe.zip"
+            dest: "C:\\temp\\alloy_installers\\alloy-installer-{{ alloy_version }}.zip"
+            force: false
+          when: not installer_cached.stat.exists
+
+        - name: Create temporary directory for extraction
+          win_tempfile:
+            state: directory
+            suffix: alloy_extract
+          register: extract_dir
+
+        - name: Extract installer from zip
+          win_unzip:
+            src: "C:\\temp\\alloy_installers\\alloy-installer-{{ alloy_version }}.zip"
+            dest: "{{ extract_dir.path }}"
+
+        - name: Install Grafana Alloy
+          win_package:
+            path: "{{ extract_dir.path }}\\alloy-installer-windows-amd64.exe"
+            arguments: '/S'
+            state: present
+            wait_for_children: true
+
+        - name: Clean up extraction directory
+          win_file:
+            path: "{{ extract_dir.path }}"
+            state: absent
+
+      when: alloy_check.rc != 0
+
+    - name: Display Alloy version (if already installed)
+      debug:
+        msg: "Alloy is already installed: {{ alloy_check.stdout }}"
+      when: alloy_check.rc == 0
+
+    - name: Create Alloy configuration directory
+      win_file:
+        path: "{{ alloy_config_dir }}"
+        state: directory
+
+    - name: Stop Alloy service before configuration
+      win_shell: |
+        sc.exe stop Alloy
+      ignore_errors: true
+
+    - name: Configure Alloy environment variables
+      win_template:
+        src: alloy-env-windows.j2
+        dest: "C:\\Program Files\\Alloy\\alloy-config.yml"
+      notify: restart alloy windows
+
+    - name: Create main Alloy configuration file
+      win_template:
+        src: main-windows.alloy.j2
+        dest: "{{ alloy_config_dir }}\\config.alloy"
+      notify: restart alloy windows
+
+    - name: Create Alloy service
+      win_shell: |
+        sc.exe create Alloy binPath= "C:\Program Files\Alloy\alloy.exe run {{ alloy_config_dir }}\config.alloy --server.http.listen-addr=0.0.0.0:{{ alloy_ui_port }}" start= auto
+      ignore_errors: true
+
+    - name: Start Alloy service
+      win_shell: |
+        sc.exe start Alloy
+      notify: restart alloy windows
+
+  handlers:
+    - name: restart alloy windows
+      win_shell: |
+        sc.exe stop Alloy
+        sc.exe start Alloy
+      ignore_errors: true
+
+  post_tasks:
+    - name: Wait for Alloy to start
+      win_wait_for:
+        port: "{{ alloy_ui_port }}"
+        host: "127.0.0.1"
+        timeout: 60
+
+    - name: Verify Alloy service status
+      win_shell: |
+        sc.exe query Alloy
+      register: alloy_status
+      ignore_errors: true
+
+    - name: Display Alloy status
+      debug:
+        msg: "Alloy service status: {{ alloy_status.stdout_lines }}"
+
+    - name: Display Alloy UI URL
+      debug:
+        msg: "Alloy UI available at: http://{{ ansible_host }}:{{ alloy_ui_port }}"

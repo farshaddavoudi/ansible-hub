@@ -1,0 +1,96 @@
+//
+// IIS Log Files
+//
+local.file_match "iis_log_source_file_match" {
+  path_targets = [
+{% for log_path in iis_log_paths %}
+    {"__address__" = "localhost", "__path__" = "{{ log_path }}"},
+{% endfor %}
+  ]
+  sync_period = "10s"
+}
+
+loki.source.file "iis_log_sources" {
+  targets      = local.file_match.iis_log_source_file_match.targets
+  tail_from_end = false
+  forward_to   = [loki.relabel.iis_adjust_labels.receiver]
+}
+
+loki.relabel "iis_adjust_labels" {
+  forward_to = [loki.write.iis_loki.receiver]
+
+  rule {
+    target_label = "source"
+    replacement = "server"
+  }
+  
+  rule {
+    target_label = "server"
+    replacement = "{{ server_identifier }}"
+  }
+
+  rule {
+    target_label = "service_name"
+    replacement = "{{ server_identifier }}"
+  }
+
+  rule {
+    target_label = "category"
+    replacement = "iis"
+  }
+
+  rule {
+    action        = "replace"
+    source_labels = ["__path__"]
+    target_label  = "subcategory"
+  }
+
+  // Extract HTTP status code for level mapping
+  rule {
+    action        = "replace"
+    source_labels = ["__line__"]
+    regex         = ".*\\s(\\d{3})\\s.*"
+    target_label  = "http_status"
+    replacement   = "$1"
+  }
+
+  // Map HTTP status to log level
+  rule {
+    source_labels = ["http_status"]
+    regex         = "2.."
+    target_label  = "level"
+    replacement   = "info"
+  }
+  
+  rule {
+    source_labels = ["http_status"]
+    regex         = "3.."
+    target_label  = "level"
+    replacement   = "info"
+  }
+  
+  rule {
+    source_labels = ["http_status"]
+    regex         = "4.."
+    target_label  = "level"
+    replacement   = "warning"
+  }
+  
+  rule {
+    source_labels = ["http_status"]
+    regex         = "5.."
+    target_label  = "level"
+    replacement   = "error"
+  }
+
+  rule {
+    action        = "labeldrop"
+    regex         = "job"
+  }
+}
+
+loki.write "iis_loki" {
+  endpoint {
+    url = "{{ loki_endpoint_url }}"
+  }
+}

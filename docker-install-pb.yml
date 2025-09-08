@@ -1,0 +1,107 @@
+# Make sure the community.docker collection is installed:
+# `ansible-galaxy collection install community.docker`
+---
+- name: Fix APT issues
+  hosts: docker_servers
+  become: true
+  roles:
+    - apt-fix
+
+- name: Install Docker
+  hosts: docker_servers
+  become: true
+
+  pre_tasks:
+    - name: Ensure python3-pip is installed
+      apt:
+        name: python3-pip
+        state: present
+      register: apt_result
+      until: apt_result is succeeded
+      retries: 3
+      delay: 5
+
+    - name: Ensure Docker SDK for Python is installed
+      pip:
+        name: docker
+        state: present
+        extra_args: --break-system-packages
+
+  roles:
+    - role: geerlingguy.docker
+
+  # tasks:
+  #   - name: Get latest Docker Compose version
+  #     uri:
+  #       url: https://api.github.com/repos/docker/compose/releases/latest
+  #       method: GET
+  #       return_content: true
+  #     register: compose_latest
+  #     delegate_to: localhost
+  #     run_once: true
+
+  #   - name: Install latest Docker Compose
+  #     get_url:
+  #       url: "https://github.com/docker/compose/releases/download/{{ compose_latest.json.tag_name }}/docker-compose-linux-x86_64"
+  #       dest: /usr/local/bin/docker-compose
+  #       mode: '0755'
+  #       force: true
+  #     register: compose_download
+  #     until: compose_download is succeeded
+  #     retries: 3
+  #     delay: 10
+
+  #   - name: Create docker-compose symlink for compatibility
+  #     file:
+  #       src: /usr/local/bin/docker-compose
+  #       dest: /usr/bin/docker-compose
+  #       state: link
+  #       force: true
+
+  #   - name: Verify Docker Compose installation
+  #     command: docker-compose --version
+  #     register: compose_version
+  #     changed_when: false
+
+  #   - name: Display Docker Compose version
+  #     debug:
+  #       msg: "Installed Docker Compose: {{ compose_version.stdout }}"
+
+  post_tasks:
+    - name: Create Portainer data directory
+      file:
+        path: "{{ portainer.config_dir }}/data"
+        state: directory
+        mode: '0755'
+      when: portainer.install
+
+    - name: Ensure proxy network exists
+      community.docker.docker_network:
+        name: "{{ portainer.docker_network_name }}"
+        state: present
+      when: portainer.install
+
+    - name: Pull Portainer image
+      community.docker.docker_image:
+        name: portainer/portainer-ce:latest
+        source: pull
+      when: portainer.install
+
+    - name: Run Portainer container
+      community.docker.docker_container:
+        name: portainer
+        image: portainer/portainer-ce:latest
+        state: started
+        restart_policy: unless-stopped
+        ports:
+          - "8000:8000"
+          - "9443:9443"
+          - "9000:9000"
+        volumes:
+          - "{{ docker_root_path }}:{{ docker_root_path }}"  # This ensures /srv/docker on host is visible inside Portainer
+          - "{{ portainer.config_dir }}/data:/data"
+          - /var/run/docker.sock:/var/run/docker.sock
+        networks:
+          - name: "{{ portainer.docker_network_name }}"
+        labels: "{{ portainer.traefik_labels if portainer.traefik_labels.enabled else {} }}"
+        recreate: true

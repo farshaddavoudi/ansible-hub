@@ -3,36 +3,43 @@ all:
 ########### HOSTS definition ###########
   hosts:
     # ATA Linux servers
-    atalinux_minio_144:
+    linux_minio_144:
       ansible_host: 127.0.0.1 ##.#.#.144
       ansible_connection: local
       ansible_user: admin
-    atalinux_haproxy_180:
+    linux_haproxy_180:
       ansible_host: #.#.#.180
-    atalinux_observability_80:
+    linux_observability_80:
       ansible_host: #.#.#.80
-    atalinux_dev_37:
-      ansible_host: #.#.#.370
-    atalinux_k8smaster1_132:
+    linux_dev_37:
+      ansible_host: 192.168.1.37
+      ansible_user: ansible
+    linux_k8smaster1_132:
       ansible_host: #.#.#.132
-    atalinux_k8sworker1_133:
+    linux_k8sworker1_133:
       ansible_host: #.#.#.133
     linux_k8sworker2_134:
       ansible_host: #.#.#.134
-    atalinux_k8sworker3_135:
+    linux_k8sworker3_135:
       ansible_host: #.#.#.135
     
     # ATA Windows servers
-    atawin_webserver_107:
-      ansible_host: #.#.#.107
+    win_webserver_107:
+      ansible_host: 192.168.1.107
       ansible_connection: winrm
-      ansible_user: administrator
-      ansible_password: password # Setup passwordless connection
-    atawin_azuredevops_119:
-      ansible_host: #.#.#.119
+      ansible_user: 'Administrator'
+      ansible_password: 'MyPass' # Setup passwordless connection
+      ansible_winrm_transport: basic
+      ansible_port: 5985
+      ansible_winrm_server_cert_validation: ignore
+    win_azuredevops_119:
+      ansible_host: 192.168.1.119
       ansible_connection: winrm
-      ansible_user: administrator
-      ansible_password: password # Setup passwordless connection
+      ansible_user: 'Administrator'
+      ansible_password: 'MyPass' # Setup passwordless connection
+      ansible_winrm_transport: basic
+      ansible_port: 5985
+      ansible_winrm_server_cert_validation: ignore
 
     # ArvanCloud VMs
     arvan_vm3_203:
@@ -43,40 +50,51 @@ all:
   ########### GROUPS definition ###########
     linux_servers:
       children:
+        # Docker group
         docker_servers:
           hosts:
-            #atalinux_dev_37:
-            arvan_vm3_203:
+            linux_observability_80:
+
+        # Traefik group
         traefik_servers:
           hosts:
-            #atalinux_dev_37:
             arvan_vm3_203:
+
+        # Sentry group
         sentry_servers:
           hosts:
-            atalinux_observability_80:
-        observability_install_servers:
-          hosts:
-            atalinux_observability_80:
-        observability_config_servers:
-          hosts:
-            atalinux_minio_144:
-            atalinux_haproxy_180:
-            atalinux_dev_37:
-
+            linux_observability_80:
+        
+        # MinIO group
         minio_servers:
           hosts:
-            atalinux_minio_144:
+            linux_minio_144:
 
+        # Alloy Linux group
+        alloy_linux_servers:
+          hosts:
+            linux_minio_144:
+            linux_haproxy_180:
+            linux_observability_80:
+            linux_dev_37:
+        
+        # Alloy Windows group
+        alloy_win_servers:
+          hosts:
+            win_azuredevops_119:
+            #win_webserver_107:
+
+        # Kubernetes group
         k8s_servers:
           hosts:
-            atalinux_k8smaster1_132:
-            atalinux_k8sworker1_133:
+            linux_k8smaster1_132:
+            linux_k8sworker1_133:
             linux_k8sworker2_134:
-            atalinux_k8sworker3_135:
+            linux_k8sworker3_135:
 
     windows_servers:
       children:
         observability_config_win_servers:
           hosts:
-            atawin_azuredevops_119:
-            atawin_webserver_107:
+            win_azuredevops_119:
+            win_webserver_107:

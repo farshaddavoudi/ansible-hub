@@ -1,0 +1,10 @@
+# Server-specific identifier
+server_identifier: "192.168.1.180_haproxy"
+
+# Custom log files for this server (HAProxy server)
+log_files:
+  - "/var/log/haproxy/*.log"
+  - "/var/log/nginx/access.log"
+  - "/var/log/nginx/error.log"
+  - "/var/log/syslog"
+  - "/var/log/auth.log"

@@ -4,14 +4,16 @@
   become: yes
 
   vars:
-    install_git: true      # Set to false to skip git installation
-    shecan_dns_server: 178.22.122.100 # Put the Shecan pro DNS here
+    install_git: false      # Set to false to skip git installation
+
+  roles:
+    - apt-fix
 
   tasks:
     - name: Set timezone to Asia/Tehran
       timezone:
         name: Asia/Tehran
-        
+
     - name: Install Git
       apt:
         name: git

@@ -1,0 +1,23 @@
+# Server-specific identifier
+server_identifier: "192.168.1.119_devops"
+
+# Loki endpoint URL
+loki_endpoint_url: "http://192.168.1.80:3100/loki/api/v1/push"
+
+# Custom application log files for this server
+app_log_files:
+  - "C:\\Program Files\\Azure DevOps Server\\*\\Logs\\*.log"
+  - "C:\\ProgramData\\Azure DevOps\\Logs\\*.log"
+  - "C:\\Windows\\Logs\\*.log"
+  - "C:\\inetpub\\logs\\LogFiles\\W3SVC1\\*.log"
+
+# Windows Event Log channels specific to this server
+windows_event_channels:
+  - name: "Application"
+    subcategory: "application"
+  - name: "System"
+    subcategory: "system"
+  - name: "Security"
+    subcategory: "security"
+  - name: "Setup"
+    subcategory: "setup"

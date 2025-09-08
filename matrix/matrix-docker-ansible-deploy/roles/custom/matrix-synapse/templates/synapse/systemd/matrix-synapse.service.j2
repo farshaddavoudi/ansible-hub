@@ -27,7 +27,6 @@ ExecStartPre=-{{ devture_systemd_docker_base_host_command_sh }} -c '{{ devture_s
 ExecStartPre={{ devture_systemd_docker_base_host_command_docker }} create \
 			--rm \
 			--name=matrix-synapse \
-			--log-driver=none \
 			--user={{ matrix_synapse_uid }}:{{ matrix_synapse_gid }} \
 			--cap-drop=ALL \
 			--read-only \

@@ -1,0 +1,8 @@
+# The configuration file holding the Alloy config.
+CONFIG_FILE="{{ alloy_config_dir }}"
+
+# User-defined arguments to pass to the run command.
+CUSTOM_ARGS="--server.http.listen-addr=0.0.0.0:{{ alloy_ui_port }}"
+
+# Restart on system upgrade. Defaults to true.
+RESTART_ON_UPGRADE={{ alloy_restart_on_upgrade | lower }}
