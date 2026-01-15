@@ -29,7 +29,27 @@ matrix_server_external_ip: "37.32.12.132"
 # =============================================================================
 # DATABASE CONFIGURATION
 # =============================================================================
+# Internal (playbook-managed) Postgres password.
+# Not used when `postgres_enabled: false`.
 postgres_connection_password: 'Aa123456'
+
+# External Postgres (disable internal container)
+postgres_enabled: false
+matrix_synapse_database_host: "postgres.example.com"
+matrix_synapse_database_user: "synapse"
+matrix_synapse_database_password: "REPLACE_ME"
+matrix_synapse_database_database: "synapse"
+
+# =============================================================================
+# MEDIA STORAGE (S3 / MinIO)
+# =============================================================================
+matrix_synapse_ext_synapse_s3_storage_provider_enabled: true
+matrix_synapse_ext_synapse_s3_storage_provider_config_bucket: "matrix-media"
+matrix_synapse_ext_synapse_s3_storage_provider_config_region_name: "us-east-1"
+matrix_synapse_ext_synapse_s3_storage_provider_config_endpoint_url: "https://minio.example.com"
+matrix_synapse_ext_synapse_s3_storage_provider_config_storage_class: "STANDARD"
+matrix_synapse_ext_synapse_s3_storage_provider_config_access_key_id: "MINIO_ACCESS_KEY"
+matrix_synapse_ext_synapse_s3_storage_provider_config_secret_access_key: "MINIO_SECRET_KEY"
 
 # =============================================================================
 # SERVICES CONFIGURATION
